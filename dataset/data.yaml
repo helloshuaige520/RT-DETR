@@ -1,0 +1,11 @@
+# dataset path
+path: /home/rtdetr/project/visdrone2019
+train: ./VisDrone2019-DET-train
+val: ./VisDrone2019-DET-val
+test: ./VisDrone2019-DET-test-dev
+
+# number of classes
+nc: 10
+
+# class names
+names: ['pedestrian', 'people', 'bicycle', 'car', 'van', 'truck', 'tricycle', 'awning-tricycle', 'bus', 'motor']
