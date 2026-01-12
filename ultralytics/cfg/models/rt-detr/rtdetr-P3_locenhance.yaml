@@ -1,6 +1,6 @@
 # Ultralytics RT-DETR r18 + P3 局部增强
 # Only enhance P3 feature in neck (small-object oriented)
-
+#number of class
 nc: 80
 
 scales:
