@@ -658,3 +658,19 @@ class P3_LocEnhance(nn.Module):
         y = self.act(self.bn1(self.conv1(x)))
         y = self.bn2(self.conv2(y))
         return x + y
+    
+class P3_LLE(nn.Module):
+    """
+    P3 Local Lightweight Enhancement
+    - Depthwise 3x3 for local spatial modeling
+    - Pointwise 1x1 for channel mixing
+    """
+    def __init__(self, c):
+        super().__init__()
+        self.dw = nn.Conv2d(c, c, 3, padding=1, groups=c, bias=False)
+        self.pw = nn.Conv2d(c, c, 1, bias=False)
+        self.bn = nn.BatchNorm2d(c)
+        self.act = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        return x + self.act(self.bn(self.pw(self.dw(x))))
