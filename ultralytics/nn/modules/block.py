@@ -528,7 +528,7 @@ class Blocks(nn.Module):
         for block in self.blocks:
             out = block(out)
         return out
-'''
+
 class P3_LCE(nn.Module):
     """
     P3-Level Local Context Enhancement (P3_LCE)
@@ -642,7 +642,7 @@ class P3_SCE(nn.Module):
         out = out * w
 
         return out + identity
-'''
+
 
 class P3_LocEnhance(nn.Module):
     def __init__(self, ch_in, ch_out=None, act='relu'):
