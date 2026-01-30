@@ -1,0 +1,8 @@
+torch==2.0.1           # PyTorch 深度学习框架
+torchvision==0.15.2    # PyTorch 官方图像工具包
+onnx==1.14.0           # 模型导出为 ONNX 格式
+onnxruntime==1.15.1    # 在 CPU/GPU 上运行 ONNX 模型
+pycocotools            # COCO 数据集评估工具
+PyYAML                 # 读取 YAML 配置文件（比如 configs/*.yaml）
+scipy                  # 数学计算库，优化、插值等
+transformers           # Hugging Face 库，用于 Transformer 模型结构

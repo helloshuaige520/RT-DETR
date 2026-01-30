@@ -1,0 +1,46 @@
+在train.py等其他代码中用参数覆盖掉default中的权重，default.yaml 仍是兜底，不被污染
+
+、*.yaml 在 Ultralytics 里的“真实地位”
+
+官方这段话想表达的真实含义是：
+
+Ultralytics 不把模型结构写死在 Python 代码里，而是通过 YAML 描述。
+
+也就是：
+
+model.yaml  →  parse_model()  →  nn.Module
+
+
+📌 对你来说，这意味着：
+
+rtdetr-r18.yaml
+👉 才是 RT-DETR-r18 的“结构定义源头”
+
+tasks.py
+👉 只是“解释 YAML、执行 forward 的执行器”
+
+
+
+你可以通过改 YAML，而不是改 Python 代码，
+来“合法地”创造新模型。
+
+RT-DETR 和 YOLO 共享同一套 CLI / Python API
+
+区别只在：
+
+model.yaml 不同
+
+task_map 不同 
+
+
+基于 rtdetr-r18.yaml
+
+新建：
+
+rtdetr-r18-edge.yaml
+rtdetr-r18-asff.yaml
+
+
+不改训练流程
+
+不动框架
