@@ -1,0 +1,1 @@
+python dataset/yolo2coco.py --image_path home/rtdetr/project/visdrone2019/VisDrone2019-DET-test-dev/images --label_path home/rtdetr/project/visdrone2019/VisDrone2019-DET-test-dev/labels
