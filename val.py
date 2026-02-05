@@ -17,7 +17,7 @@ def get_weight_size(path):
     return f'{stats.st_size / 1024 / 1024:.1f}'
 
 if __name__ == '__main__':
-    model_path = '/home/rtdetr/project/RTDETR-20251122/RTDETR-20251122/RTDETR-main/runs/train/exp-visdrone2019-rtdetr-C2f-Additive-CGLU + P2 Head/weights/best.pt'
+    model_path = '/home/rtdetr/project/RTDETR-20251122/RTDETR-20251122/RTDETR-main/runs/train/exp-visdrone2019-rtdetr-SOEP/weights/best.pt'
     model = RTDETR(model_path) # 选择训练好的权重路径
     result = model.val(data='/home/rtdetr/project/RTDETR-20251122/RTDETR-20251122/RTDETR-main/dataset/data.yaml',
                       split='test', # split可以选择train、val、test 根据自己的数据集情况来选择.
@@ -25,7 +25,7 @@ if __name__ == '__main__':
                       batch=4,
                        save_json=True, # if you need to cal coco metrice
                       project='runs/val',
-                      name='exp-visdrone2019-rtdetr-C2f-Additive-CGLU + P2 Head',
+                      name='exp-visdrone2019-rtdetr-SOEP',
                       )
     
     if model.task == 'detect': # 仅目标检测任务适用

@@ -706,12 +706,3 @@ class DySample(nn.Module):
         # 但为了发论文，强烈建议找一个完整的 DySample 实现粘贴进去。
         return F.interpolate(x, scale_factor=self.scale, mode='bilinear', align_corners=False)
     
-class SPDConv(nn.Module):
-    # Space-to-Depth Convolution
-    def __init__(self, c1, c2, dimension=1):
-        super().__init__()
-        self.d = dimension
-        self.conv = Conv(c1 * 4, c2, 3, 1)
-
-    def forward(self, x):
-        return self.conv(torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1))
