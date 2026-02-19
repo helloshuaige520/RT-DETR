@@ -1,0 +1,9 @@
+# dataset path
+train: /home/rtdetr/project/wc_workspace/dataset/Citypersons/images/train
+val: /home/rtdetr/project/wc_workspace/dataset/Citypersons/images/val
+
+# number of classes
+nc: 1
+
+# class names
+names: ['person']

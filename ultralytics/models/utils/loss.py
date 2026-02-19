@@ -99,23 +99,25 @@ class DETRLoss(nn.Module):
 
         if self.sl or self.emasl:
             if num_gts > 0:
-                auto_iou = (gt_scores[gt_scores > 0]).mean()
+                pos = gt_scores > 0
+                auto_iou = gt_scores[pos].mean() if pos.any() else torch.tensor(-1.0, device=gt_scores.device)
             else:
-                auto_iou = -1
+                auto_iou = torch.tensor(-1.0, device=gt_scores.device)
             if self.sl:
                 loss_cls = self.sl(pred_scores, gt_scores, auto_iou).mean(1).sum()
             else:
                 loss_cls = self.emasl(pred_scores, gt_scores, auto_iou).mean(1).sum()
         elif self.svfl or self.emasvfl:
             if num_gts > 0:
-                auto_iou = (gt_scores[gt_scores > 0]).mean()
+                pos = gt_scores > 0
+                auto_iou = gt_scores[pos].mean() if pos.any() else torch.tensor(-1.0, device=gt_scores.device)
             else:
-                auto_iou = -1
+                auto_iou = torch.tensor(-1.0, device=gt_scores.device)
             if num_gts:
                 if self.svfl:
-                    loss_cls = self.svfl(pred_scores, gt_scores, one_hot, auto_iou)
+                    loss_cls = self.svfl(pred_scores, gt_scores, one_hot.float(), auto_iou)
                 else:
-                    loss_cls = self.emasvfl(pred_scores, gt_scores, one_hot, auto_iou)
+                    loss_cls = self.emasvfl(pred_scores, gt_scores, one_hot.float(), auto_iou)
             else:
                 loss_cls = self.fl(pred_scores, one_hot.float())
             loss_cls /= max(num_gts, 1) / nq
@@ -280,6 +282,11 @@ class DETRLoss(nn.Module):
                   postfix='',
                   match_indices=None):
         """Get losses."""
+        # sanitize non-finite predictions to avoid NaN loss
+        if not torch.isfinite(pred_bboxes).all():
+            pred_bboxes = torch.where(torch.isfinite(pred_bboxes), pred_bboxes, torch.zeros_like(pred_bboxes))
+        if not torch.isfinite(pred_scores).all():
+            pred_scores = torch.where(torch.isfinite(pred_scores), pred_scores, torch.zeros_like(pred_scores))
         if match_indices is None:
             match_indices = self.matcher(pred_bboxes,
                                          pred_scores,

@@ -450,8 +450,36 @@ class RTDETRDetectionModel(DetectionModel):
     def init_criterion(self):
         """Initialize the loss criterion for the RTDETRDetectionModel."""
         from ultralytics.models.utils.loss import RTDETRDetectionLoss
-
-        return RTDETRDetectionLoss(nc=self.nc, use_vfl=True, use_sl=False, use_emasl=False, use_svfl=False, use_emasvfl=False, use_mal=False)
+        #由于新增loss删掉这行return RTDETRDetectionLoss(nc=self.nc, use_vfl=True, use_sl=False, use_emasl=False, use_svfl=False, use_emasvfl=False, use_mal=False)
+        #下面是新增的loss
+        loss_cfg = self.yaml.get('loss', {})
+        criterion = RTDETRDetectionLoss(
+            nc=self.nc,
+            use_vfl=loss_cfg.get('use_vfl', True),
+            use_sl=loss_cfg.get('use_sl', False),
+            use_emasl=loss_cfg.get('use_emasl', False),
+            use_svfl=loss_cfg.get('use_svfl', False),
+            use_emasvfl=loss_cfg.get('use_emasvfl', False),
+            use_mal=loss_cfg.get('use_mal', False),
+            use_uni_match=loss_cfg.get('use_uni_match', False),
+            uni_match_ind=loss_cfg.get('uni_match_ind', 0),
+        )
+        # Optional matcher and loss gains
+        if 'loss_gain' in loss_cfg:
+            criterion.loss_gain.update(loss_cfg['loss_gain'])
+        if 'matcher_cost_gain' in loss_cfg:
+            try:
+                criterion.matcher.cost_gain.update(loss_cfg['matcher_cost_gain'])
+            except Exception:
+                pass
+        # Optional bbox regression variants
+        criterion.use_wiseiou = loss_cfg.get('use_wiseiou', False)
+        criterion.nwd_loss = loss_cfg.get('nwd_loss', False)
+        criterion.gcd_loss = loss_cfg.get('gcd_loss', False)
+        if 'iou_ratio' in loss_cfg:
+            criterion.iou_ratio = loss_cfg['iou_ratio']
+        return criterion
+        #以上
 
     def loss(self, batch, preds=None):
         """
