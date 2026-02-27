@@ -74,8 +74,10 @@ class EMASlideLoss:
             return loss
 
 class SlideVarifocalLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, alpha=0.75, gamma=2.0):
         super(SlideVarifocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
 
     def forward(self, pred, true, one_hot, auto_iou=0.5):
         loss = self.loss_fcn(pred, true, one_hot)
@@ -92,6 +94,9 @@ class SlideVarifocalLoss(nn.Module):
         return loss.mean(1).sum()
     
     def loss_fcn(self, pred_score, gt_score, label, alpha=0.75, gamma=2.0):
+        # prefer configured alpha/gamma if available
+        if hasattr(self, 'alpha') and hasattr(self, 'gamma'):
+            alpha, gamma = self.alpha, self.gamma
         weight = alpha * pred_score.sigmoid().pow(gamma) * (1 - label) + gt_score * label
         with torch.cuda.amp.autocast(enabled=False):
             loss = (F.binary_cross_entropy_with_logits(pred_score.float(), gt_score.float(), reduction='none') *
@@ -99,12 +104,14 @@ class SlideVarifocalLoss(nn.Module):
         return loss
 
 class EMASlideVarifocalLoss:
-    def __init__(self, decay=0.999, tau=2000):
+    def __init__(self, decay=0.999, tau=2000, alpha=0.75, gamma=2.0):
         super(EMASlideVarifocalLoss, self).__init__()
         self.decay = lambda x: decay * (1 - math.exp(-x / tau))
         self.is_train = True
         self.updates = 0
         self.iou_mean = 1.0
+        self.alpha = alpha
+        self.gamma = gamma
     
     def __call__(self, pred, true, one_hot, auto_iou=0.5):
         if self.is_train and auto_iou != -1:
@@ -126,6 +133,9 @@ class EMASlideVarifocalLoss:
         return loss.mean(1).sum()
     
     def loss_fcn(self, pred_score, gt_score, label, alpha=0.75, gamma=2.0):
+        # prefer configured alpha/gamma if available
+        if hasattr(self, 'alpha') and hasattr(self, 'gamma'):
+            alpha, gamma = self.alpha, self.gamma
         weight = alpha * pred_score.sigmoid().pow(gamma) * (1 - label) + gt_score * label
         with torch.cuda.amp.autocast(enabled=False):
             loss = (F.binary_cross_entropy_with_logits(pred_score.float(), gt_score.float(), reduction='none') *

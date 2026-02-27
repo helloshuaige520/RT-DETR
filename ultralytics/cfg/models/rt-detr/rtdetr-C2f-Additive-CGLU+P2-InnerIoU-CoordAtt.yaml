@@ -1,48 +1,28 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
-# RT-DETR-Combined: C2f-Additive-CGLU Backbone + P2 Scale-Aware Head
+# RT-DETR-Combined: C2f-Additive-CGLU-CoordAtt Backbone + P2 Scale-Aware Head + InnerIoU Loss
 
 # Parameters
 nc: 10  # VisDrone 类别数
 scales: 
   l: [1.00, 1.00, 1024]
 
-# Loss configuration (small-object oriented)
+# Loss Configuration
 loss:
-  use_vfl: true
-  use_svfl: false
+  use_vfl: false
+  use_svfl: true
   use_emasvfl: true
-  use_sl: false
-  use_emasl: false
-  use_mal: false
-  use_uni_match: true
-  uni_match_ind: 0
-  # Classification hparams
-  vfl_alpha: 0.6
-  vfl_gamma: 1.5
   svfl_alpha: 0.6
   svfl_gamma: 1.5
-  # Regression mixing for small objects
   nwd_loss: true
-  gcd_loss: false
   nwd_constant: 10.0
   iou_ratio: 0.6
-  use_wiseiou: false
-  # Weights
-  loss_gain:
-    class: 1.0
-    bbox: 5.0
-    giou: 2.0
-  # Hungarian matcher costs
+  inner_iou: true
+  inner_ratio: 0.75  # 针对小目标微调 Inner-IoU 比例
   matcher_cost_gain:
-    class: 3.0
+    class: 2.0
     bbox: 5.0
     giou: 2.0
 
-
-# ====================================================================
-# [Part 1] Backbone: C2f-Additive-CGLU (轻量化核心)
-# 注意：我们显式插入了 Conv 下采样层，以匹配 P2-P5 的层级结构
-# ====================================================================
 backbone:
   # [from, repeats, module, args]
   # Stem (初始下采样到 P2)
@@ -51,26 +31,21 @@ backbone:
   - [-1, 1, ConvNormLayer, [64, 3, 1, None, False, 'relu']] # 2
   - [-1, 1, nn.MaxPool2d, [3, 2, 1]] # 3-P2/4 (Stride=4)
 
-  # Stage 1 (P2): 你的核心模块
-  # [out_channels, shortcut] -> 假设你代码里 C2f_AdditiveBlock_CGLU 的参数跟 C2f 一样
-  - [-1, 3, C2f_AdditiveBlock_CGLU, [64, True]] # 4 -> 输出 P2 特征 (64ch)
+  # Stage 1 (P2): 引入 CoordAtt 增强空间定位
+  - [-1, 3, C2f_AdditiveBlock_CGLU_CoordAtt, [64, True]] # 4 -> 输出 P2 特征 (64ch)
 
   # Stage 2 (P3)
   - [-1, 1, Conv, [128, 3, 2]] # 5 -> 下采样 P2->P3
-  - [-1, 3, C2f_AdditiveBlock_CGLU, [128, True]] # 6 -> 输出 P3 特征 (128ch)
+  - [-1, 3, C2f_AdditiveBlock_CGLU_CoordAtt, [128, True]] # 6 -> 输出 P3 特征 (128ch)
 
   # Stage 3 (P4)
   - [-1, 1, Conv, [256, 3, 2]] # 7 -> 下采样 P3->P4
-  - [-1, 3, C2f_AdditiveBlock_CGLU, [256, True]] # 8 -> 输出 P4 特征 (256ch)
+  - [-1, 3, C2f_AdditiveBlock_CGLU_CoordAtt, [256, True]] # 8 -> 输出 P4 特征 (256ch)
 
   # Stage 4 (P5)
   - [-1, 1, Conv, [512, 3, 2]] # 9 -> 下采样 P4->P5
-  - [-1, 3, C2f_AdditiveBlock_CGLU, [512, True]] # 10 -> 输出 P5 特征 (512ch)
+  - [-1, 3, C2f_AdditiveBlock_CGLU_CoordAtt, [512, True]] # 10 -> 输出 P5 特征 (512ch)
 
-# ====================================================================
-# [Part 2] Head: P2 Scale-Aware Encoder (高精度核心)
-# 注意：由于 Backbone 加了下采样层，输入索引变更为 [4, 6, 8, 10]
-# ====================================================================
 head:
   # --- P5 处理 ---
   - [10, 1, Conv, [256, 1, 1, None, 1, 1, False]]  # 11 input_proj.3 (Source: Layer 10)
@@ -90,28 +65,24 @@ head:
   - [[-2, -1], 1, Concat, [1]]  # 21
   - [-1, 3, RepC3, [256, 0.5]]    # 22 X3
 
-  # --- P3 -> P2 (这是关键!) ---
+  # --- P3 -> P2 ---
   - [-1, 1, nn.Upsample, [None, 2, 'nearest']] # 23
   - [4, 1, Conv, [256, 1, 1, None, 1, 1, False]]  # 24 input_proj.0 (Source: Layer 4 - P2)
   - [[-2, -1], 1, Concat, [1]]  # 25
   - [-1, 3, RepC3, [128, 0.5]]    # 26 X2 (输出 P2 特征)
 
-  # --- Encoder Bottom-Up (自底向上融合) ---
-  # P2 -> P3
+  # --- Encoder Bottom-Up ---
   - [-1, 1, Conv, [256, 3, 2]]   # 27 downsample
   - [[-1, 22], 1, Concat, [1]]  # 28 cat X3
   - [-1, 3, RepC3, [256, 0.5]]    # 29 F3
 
-  # P3 -> P4
   - [-1, 1, Conv, [256, 3, 2]]   # 30 downsample
   - [[-1, 18], 1, Concat, [1]]  # 31 cat Y4
   - [-1, 3, RepC3, [256, 0.5]]    # 32 F4
 
-  # P4 -> P5
   - [-1, 1, Conv, [256, 3, 2]]   # 33 downsample
   - [[-1, 13], 1, Concat, [1]]  # 34 cat Y5
   - [-1, 3, RepC3, [256, 0.5]]    # 35 F5
 
   # --- Detect Head (4 Scales) ---
-  # 输入顺序: [P2, P3, P4, P5] -> [Layer 26, 29, 32, 35]
   - [[26, 29, 32, 35], 1, RTDETRDecoder, [nc, 128, 300, 4, 8, 3]]

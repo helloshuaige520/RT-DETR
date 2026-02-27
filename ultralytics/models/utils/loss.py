@@ -43,7 +43,19 @@ class DETRLoss(nn.Module):
                  use_emasvfl=False, # EMASlideVarifocalLoss
                  use_mal=False, # CVPR2025-DEIM MAL
                  use_uni_match=False,
-                 uni_match_ind=0):
+                 uni_match_ind=0,
+                 # extra hparams
+                 vfl_alpha=0.75,
+                 vfl_gamma=2.0,
+                 svfl_alpha=0.75,
+                 svfl_gamma=2.0,
+                 nwd_constant=12.8,
+                 iou_ratio=0.5,
+                 inner_iou=False,
+                 inner_ratio=0.7,
+                 focaler_iou=False,
+                 focaler_d=0.0,
+                 focaler_u=0.95):
         """
         DETR loss function.
 
@@ -67,8 +79,8 @@ class DETRLoss(nn.Module):
         self.vfl = VarifocalLoss() if use_vfl else None
         self.sl = SlideLoss(nn.BCEWithLogitsLoss(reduction='none')) if use_sl else None
         self.emasl = EMASlideLoss(nn.BCEWithLogitsLoss(reduction='none')) if use_emasl else None
-        self.svfl = SlideVarifocalLoss() if use_svfl else None
-        self.emasvfl = EMASlideVarifocalLoss() if use_emasvfl else None
+        self.svfl = SlideVarifocalLoss(alpha=svfl_alpha, gamma=svfl_gamma) if use_svfl else None
+        self.emasvfl = EMASlideVarifocalLoss(alpha=svfl_alpha, gamma=svfl_gamma) if use_emasvfl else None
         self.mal = MALoss() if use_mal else None
 
         self.use_uni_match = use_uni_match
@@ -77,9 +89,22 @@ class DETRLoss(nn.Module):
         
         # for nwd loss
         self.nwd_loss = False
+        self.nwd_constant = nwd_constant
         # for gcd loss
         self.gcd_loss = False
-        self.iou_ratio = 0.5 # total_iou_loss = self.iou_ratio * iou_loss + (1 - self.iou_ratio) * (nwd_loss or gcd_loss)
+        self.iou_ratio = iou_ratio # total_iou_loss = self.iou_ratio * iou_loss + (1 - self.iou_ratio) * (nwd_loss or gcd_loss)
+        # store cls hparams
+        self.vfl_alpha = vfl_alpha
+        self.vfl_gamma = vfl_gamma
+        self.svfl_alpha = svfl_alpha
+        self.svfl_gamma = svfl_gamma
+        
+        # for inner-iou and focaler-iou
+        self.inner_iou = inner_iou
+        self.inner_ratio = inner_ratio
+        self.focaler_iou = focaler_iou
+        self.focaler_d = focaler_d
+        self.focaler_u = focaler_u
         
         # for wise-iou loss
         self.use_wiseiou = False
@@ -100,7 +125,8 @@ class DETRLoss(nn.Module):
         if self.sl or self.emasl:
             if num_gts > 0:
                 pos = gt_scores > 0
-                auto_iou = gt_scores[pos].mean() if pos.any() else torch.tensor(-1.0, device=gt_scores.device)
+                valid_gt_scores = gt_scores[pos]
+                auto_iou = valid_gt_scores.mean() if valid_gt_scores.numel() > 0 else torch.tensor(-1.0, device=gt_scores.device)
             else:
                 auto_iou = torch.tensor(-1.0, device=gt_scores.device)
             if self.sl:
@@ -110,7 +136,8 @@ class DETRLoss(nn.Module):
         elif self.svfl or self.emasvfl:
             if num_gts > 0:
                 pos = gt_scores > 0
-                auto_iou = gt_scores[pos].mean() if pos.any() else torch.tensor(-1.0, device=gt_scores.device)
+                valid_gt_scores = gt_scores[pos]
+                auto_iou = valid_gt_scores.mean() if valid_gt_scores.numel() > 0 else torch.tensor(-1.0, device=gt_scores.device)
             else:
                 auto_iou = torch.tensor(-1.0, device=gt_scores.device)
             if num_gts:
@@ -124,7 +151,7 @@ class DETRLoss(nn.Module):
         elif self.fl:
             if num_gts:
                 if self.vfl:
-                    loss_cls = self.vfl(pred_scores, gt_scores, one_hot)
+                    loss_cls = self.vfl.forward(pred_scores, gt_scores, one_hot, alpha=self.vfl_alpha, gamma=self.vfl_gamma)
                 elif self.mal:
                     loss_cls = self.mal(pred_scores, gt_scores, one_hot)
             else:
@@ -152,18 +179,15 @@ class DETRLoss(nn.Module):
         loss[name_bbox] = self.loss_gain['bbox'] * F.l1_loss(pred_bboxes, gt_bboxes, reduction='sum') / len(gt_bboxes)
         if self.use_wiseiou:
             loss[name_giou] = self.wiou_loss(pred_bboxes, gt_bboxes, ret_iou=False, ratio=0.7, d=0.0, u=0.95)
-            # loss[name_giou] = self.wiou_loss(pred_bboxes, gt_bboxes, ret_iou=False, ratio=0.7, d=0.0, u=0.95, **{'scale':0.0}) # Wise-ShapeIoU,Wise-Inner-ShapeIoU,Wise-Focaler-ShapeIoU
-            # loss[name_giou] = self.wiou_loss(pred_bboxes, gt_bboxes, ret_iou=False, ratio=0.7, d=0.0, u=0.95, **{'mpdiou_hw':2}) # Wise-MPDIoU,Wise-Inner-MPDIoU,Wise-Focaler-MPDIoU
+        elif self.inner_iou:
+            loss[name_giou] = 1.0 - bbox_inner_iou(pred_bboxes, gt_bboxes, xywh=True, GIoU=True, ratio=self.inner_ratio)
+        elif self.focaler_iou:
+            loss[name_giou] = 1.0 - bbox_focaler_iou(pred_bboxes, gt_bboxes, xywh=True, GIoU=True, d=self.focaler_d, u=self.focaler_u)
         else:
             loss[name_giou] = 1.0 - bbox_iou(pred_bboxes, gt_bboxes, xywh=True, GIoU=True)
-            # loss[name_giou] = 1.0 - bbox_inner_iou(pred_bboxes, gt_bboxes, xywh=True, GIoU=True, ratio=0.7) # Inner IoU
-            # loss[name_giou] = 1.0 - bbox_focaler_iou(pred_bboxes, gt_bboxes, xywh=True, GIoU=True, d=0.0, u=0.95) # Focaler IoU
-            # loss[name_giou] = 1.0 - bbox_mpdiou(pred_bboxes, gt_bboxes, xywh=True, mpdiou_hw=2) # MPDIoU
-            # loss[name_giou] = 1.0 - bbox_inner_mpdiou(pred_bboxes, gt_bboxes, xywh=True, mpdiou_hw=2, ratio=0.7) # Inner-MPDIoU
-            # loss[name_giou] = 1.0 - bbox_focaler_mpdiou(pred_bboxes, gt_bboxes, xywh=True, mpdiou_hw=2, d=0.0, u=0.95) # Focaler-MPDIoU
         
         if self.nwd_loss:
-            nwd = wasserstein_loss(pred_bboxes, gt_bboxes)
+            nwd = wasserstein_loss(pred_bboxes, gt_bboxes, constant=self.nwd_constant)
             loss[name_giou] = self.iou_ratio * (loss[name_giou].sum() / len(gt_bboxes)) + (1.0 - self.iou_ratio) * ((1.0 - nwd).sum() / len(gt_bboxes))
         elif self.gcd_loss:
             gcd = gcd_loss(pred_bboxes, gt_bboxes)
@@ -368,6 +392,12 @@ class RTDETRDetectionLoss(DETRLoss):
             (dict): Dictionary containing the total loss and, if applicable, the denoising loss.
         """
         pred_bboxes, pred_scores = preds
+        # Ensure predictions are finite
+        if not torch.isfinite(pred_bboxes).all():
+            pred_bboxes = torch.where(torch.isfinite(pred_bboxes), pred_bboxes, torch.zeros_like(pred_bboxes))
+        if not torch.isfinite(pred_scores).all():
+            pred_scores = torch.where(torch.isfinite(pred_scores), pred_scores, torch.zeros_like(pred_scores))
+            
         total_loss = super().forward(pred_bboxes, pred_scores, batch)
 
         # Check for denoising metadata to compute denoising training loss

@@ -463,6 +463,18 @@ class RTDETRDetectionModel(DetectionModel):
             use_mal=loss_cfg.get('use_mal', False),
             use_uni_match=loss_cfg.get('use_uni_match', False),
             uni_match_ind=loss_cfg.get('uni_match_ind', 0),
+            # extra hparams
+            vfl_alpha=loss_cfg.get('vfl_alpha', 0.75),
+            vfl_gamma=loss_cfg.get('vfl_gamma', 2.0),
+            svfl_alpha=loss_cfg.get('svfl_alpha', 0.75),
+            svfl_gamma=loss_cfg.get('svfl_gamma', 2.0),
+            nwd_constant=loss_cfg.get('nwd_constant', 12.8),
+            iou_ratio=loss_cfg.get('iou_ratio', 0.5),
+            inner_iou=loss_cfg.get('inner_iou', False),
+            inner_ratio=loss_cfg.get('inner_ratio', 0.7),
+            focaler_iou=loss_cfg.get('focaler_iou', False),
+            focaler_d=loss_cfg.get('focaler_d', 0.0),
+            focaler_u=loss_cfg.get('focaler_u', 0.95),
         )
         # Optional matcher and loss gains
         if 'loss_gain' in loss_cfg:
@@ -476,8 +488,31 @@ class RTDETRDetectionModel(DetectionModel):
         criterion.use_wiseiou = loss_cfg.get('use_wiseiou', False)
         criterion.nwd_loss = loss_cfg.get('nwd_loss', False)
         criterion.gcd_loss = loss_cfg.get('gcd_loss', False)
+        # hparams are already passed to constructor; ensure runtime overrides if provided
         if 'iou_ratio' in loss_cfg:
             criterion.iou_ratio = loss_cfg['iou_ratio']
+        if 'nwd_constant' in loss_cfg:
+            criterion.nwd_constant = loss_cfg['nwd_constant']
+        if 'inner_iou' in loss_cfg:
+            criterion.inner_iou = loss_cfg['inner_iou']
+        if 'inner_ratio' in loss_cfg:
+            criterion.inner_ratio = loss_cfg['inner_ratio']
+        if 'focaler_iou' in loss_cfg:
+            criterion.focaler_iou = loss_cfg['focaler_iou']
+        if 'focaler_d' in loss_cfg:
+            criterion.focaler_d = loss_cfg['focaler_d']
+        if 'focaler_u' in loss_cfg:
+            criterion.focaler_u = loss_cfg['focaler_u']
+        if hasattr(criterion, 'svfl') and criterion.svfl is not None:
+            if 'svfl_alpha' in loss_cfg:
+                criterion.svfl.alpha = loss_cfg['svfl_alpha']
+            if 'svfl_gamma' in loss_cfg:
+                criterion.svfl.gamma = loss_cfg['svfl_gamma']
+        if hasattr(criterion, 'emasvfl') and criterion.emasvfl is not None:
+            if 'svfl_alpha' in loss_cfg:
+                criterion.emasvfl.alpha = loss_cfg['svfl_alpha']
+            if 'svfl_gamma' in loss_cfg:
+                criterion.emasvfl.gamma = loss_cfg['svfl_gamma']
         return criterion
         #以上
 
@@ -802,8 +837,7 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
                  C3_ContextGuided, C2f_ContextGuided, CSP_PAC, DGCST, DGCST2, RetBlockC3, C3_RetBlock, C2f_RetBlock, RepNCSPELAN4_CAA,
                  C3_PKIModule, C2f_PKIModule, C3_FADC, C2f_FADC, C3_PPA, C2f_PPA, SRFD, DRFD, RGCSPELAN, C3_Faster_CGLU, C2f_Faster_CGLU,
                  C3_Star, C2f_Star, C3_Star_CAA, C2f_Star_CAA, C3_KAN, C2f_KAN, KANC3, C3_DEConv, C2f_DEConv, C3_SMPCGLU, C2f_SMPCGLU,
-                 C3_Heat, C2f_Heat, CSP_PTB, SimpleStem, VisionClueMerge, VSSBlock_YOLO, XSSBlock, GLSA, WTConv2d, C2f_FMB, gConvC3, C2f_gConv,
-                 LDConv, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, CSP_MSCB, C2f_MSMHSA_CGLU, CSP_PMSFA, C2f_MogaBlock,
+                 C3_Heat, C2f_Heat, CSP_PTB, SimpleStem, VisionClueMerge, VSSBlock_YOLO, XSSBlock, GLSA, WTConv2d, C2f_FMB, gConvC3, C2f_gConv, LDConv, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, C2f_AdditiveBlock_CGLU_CoordAtt, CSP_MSCB, C2f_MSMHSA_CGLU, CSP_PMSFA, C2f_MogaBlock,
                  C2f_SHSA, C2f_SHSA_CGLU, C2f_SMAFB, C2f_SMAFB_CGLU, CSP_MutilScaleEdgeInformationEnhance, C2f_FFCM, C2f_SFHF, CSP_FreqSpatial,
                  C2f_MSM, CSP_MutilScaleEdgeInformationSelect, C2f_HDRAB, C2f_RAB, LFEC3, C2f_FCA, C2f_CAMixer, MANet, MANet_FasterBlock, MANet_FasterCGLU,
                  MANet_Star, C2f_HFERB, C2f_DTAB, C2f_JDPM, C2f_ETB, C2f_FDT, PSConv, C2f_AP, C2f_ELGCA, C2f_ELGCA_CGLU, C2f_Strip, C2f_StripCGLU,
@@ -839,7 +873,7 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
                      C3_VSS, C2f_VSS, C3_LVMB, C2f_LVMB, C3_ContextGuided, C2f_ContextGuided, RetBlockC3, C3_RetBlock, C2f_RetBlock,
                      C3_PKIModule, C2f_PKIModule, C3_FADC, C2f_FADC, C3_PPA, C2f_PPA, RGCSPELAN, C3_Faster_CGLU, C2f_Faster_CGLU,
                      C3_Star, C2f_Star, C3_Star_CAA, C2f_Star_CAA, C3_KAN, C2f_KAN, KANC3, C3_DEConv, C2f_DEConv, C3_SMPCGLU, C2f_SMPCGLU, 
-                     C3_Heat, C2f_Heat, CSP_PTB, XSSBlock, C2f_FMB, C2f_gConv, gConvC3, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, CSP_MSCB,
+                     C3_Heat, C2f_Heat, CSP_PTB, XSSBlock, C2f_FMB, C2f_gConv, gConvC3, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, C2f_AdditiveBlock_CGLU_CoordAtt, CSP_MSCB,
                      C2f_MSMHSA_CGLU, CSP_PMSFA, C2f_MogaBlock, C2f_SHSA, C2f_SHSA_CGLU, C2f_SMAFB, C2f_SMAFB_CGLU, CSP_MutilScaleEdgeInformationEnhance,
                      C2f_FFCM, C2f_SFHF, CSP_FreqSpatial, C2f_MSM, CSP_MutilScaleEdgeInformationSelect, C2f_HDRAB, C2f_RAB, LFEC3, C2f_FCA, C2f_CAMixer, MANet,
                      MANet_FasterBlock, MANet_FasterCGLU, MANet_Star, C2f_HFERB, C2f_DTAB, C2f_JDPM, C2f_ETB, C2f_FDT, C2f_AP, C2f_ELGCA, C2f_ELGCA_CGLU, 

@@ -108,7 +108,7 @@ __all__ = ['Ghost_HGBlock', 'Rep_HGBlock', 'DWRC3', 'C3_DWR', 'C2f_DWR', 'BasicB
            'ContextGuideFusionModule', 'C3_DEConv', 'C2f_DEConv', 'BasicBlock_DEConv', 'BottleNeck_DEConv', 'C3_SMPCGLU', 'C2f_SMPCGLU',
            'C3_Heat', 'C2f_Heat', 'PSA', 'SBA', 'WaveletPool', 'WaveletUnPool', 'CSP_PTB', 'GLSA', 'CSPOmniKernel', 'WTConv2d', 'RCM', 'PyramidContextExtraction',
            'DynamicInterpolationFusion', 'FuseBlockMulti', 'C2f_FMB', 'gConvC3', 'C2f_gConv', 'LDConv', 'BasicBlock_WDBB', 'BottleNeck_WDBB', 'BasicBlock_DeepDBB', 'BottleNeck_DeepDBB',
-           'C2f_AdditiveBlock', 'C2f_AdditiveBlock_CGLU', 'CSP_MSCB', 'EUCB', 'C2f_MSMHSA_CGLU', 'CSP_PMSFA', 'C2f_MogaBlock', 'C2f_SHSA', 'C2f_SHSA_CGLU', 'C2f_SMAFB', 'C2f_SMAFB_CGLU',
+           'C2f_AdditiveBlock', 'C2f_AdditiveBlock_CGLU', 'C2f_AdditiveBlock_CGLU_CoordAtt', 'CSP_MSCB', 'EUCB', 'C2f_MSMHSA_CGLU', 'CSP_PMSFA', 'C2f_MogaBlock', 'C2f_SHSA', 'C2f_SHSA_CGLU', 'C2f_SMAFB', 'C2f_SMAFB_CGLU',
            'DynamicAlignFusion', 'CSP_MutilScaleEdgeInformationEnhance', 'C2f_FFCM', 'C2f_SFHF', 'CSP_FreqSpatial', 'C2f_MSM', 'CSP_MutilScaleEdgeInformationSelect', 'C2f_HDRAB', 'C2f_RAB',
            'LFEC3', 'MutilScaleEdgeInfoGenetator', 'ConvEdgeFusion', 'C2f_FCA', 'C2f_CAMixer', 'HyperComputeModule', 'MANet', 'MANet_FasterBlock', 'MANet_FasterCGLU', 'MANet_Star', 'MultiScaleGatedAttn',
            'C2f_HFERB', 'C2f_DTAB', 'DTAB', 'C2f_JDPM', 'C2f_ETB', 'ETB', 'C2f_FDT', 'FDT', 'WFU', 'PSConv', 'C2f_AP', 'ContrastDrivenFeatureAggregation', 'C2f_ELGCA', 'C2f_ELGCA_CGLU',
@@ -6664,6 +6664,17 @@ class C2f_AdditiveBlock_CGLU(C2f):
     def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
         super().__init__(c1, c2, n, shortcut, g, e)
         self.m = nn.ModuleList(AdditiveBlock_CGLU(self.c) for _ in range(n))
+
+class C2f_AdditiveBlock_CGLU_CoordAtt(C2f):
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.m = nn.ModuleList(AdditiveBlock_CGLU(self.c) for _ in range(n))
+        self.att = CoordAtt(c2, c2)
+
+    def forward(self, x):
+        y = list(self.cv1(x).chunk(2, 1))
+        y.extend(m(y[-1]) for m in self.m)
+        return self.att(self.cv2(torch.cat(y, 1)))
 
 ######################################## CAS-ViT end ########################################
 
