@@ -17,8 +17,7 @@ from ultralytics import RTDETR
 # 但是在val.py的时候精度为0，所以统一改成fp32，原则上没影响，只是存储的位数变多了。
 
 if __name__ == '__main__':
-    model = RTDETR('ultralytics/cfg/models/wcwork.yaml')
-    model = RTDETR('/home/rtdetr/project/RTDETR-20251122/RTDETR-20251122/RTDETR-main/ultralytics/cfg/models/rt-detr/rtdetr-C2f-Additive-CGLU + P2 Head 2-SVFL+NWD.yaml')
+    model = RTDETR('/home/rtdetr/project/RTDETR-20251122/RTDETR-20251122/RTDETR-main/ultralytics/cfg/models/rt-detr/rtdetr-C2f-Additive-CGLU+P2-InnerIoU-CoordAtt.yaml')
     # model.load('') # loading pretrain weights
     model.train(#data='/home/rtdetr/project/RTDETR-20251122/RTDETR-20251122/RTDETR-main/dataset/cityperson.yaml',
                 data='/home/rtdetr/project/RTDETR-20251122/RTDETR-20251122/RTDETR-main/dataset/data.yaml',
@@ -28,9 +27,9 @@ if __name__ == '__main__':
                 batch=4, # batchsize 不建议乱动，一般来说4的效果都是最好的，越大的batch效果会很差(经验之谈)
                 workers=4, # Windows下出现莫名其妙卡主的情况可以尝试把workers设置为0
                 # device='0,1', # 指定显卡和多卡训练参考<使用教程.md>下方常见错误和解决方案
-                 resume='/home/rtdetr/project/RTDETR-20251122/RTDETR-20251122/RTDETR-main/runs/train/rtdetr-C2f-Additive-CGLU+P2-loss_hparameter_SVFLNWD_v1/weights/last.pt', # last.pt path
+                # resume='/home/rtdetr/project/RTDETR-20251122/RTDETR-20251122/RTDETR-main/runs/train/rtdetr-C2f-Additive-CGLU+P2-loss_hparameter_SVFLNWD_v1/weights/last.pt', # last.pt path
                 patience=50, # 设置0代表不早提供，设置30代表精度持续30epoch没有比之前最高的高就早停
                 project='runs/train',
                 # name = 'pcmsa-lgaf-cityperson'
-                 name='rtdetr-C2f-Additive-CGLU+P2-loss_hparameter_SVFLNWD_v1',
+                name='train_full_AddCA-InnerIoU_v1',
                 )
