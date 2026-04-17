@@ -108,7 +108,7 @@ __all__ = ['Ghost_HGBlock', 'Rep_HGBlock', 'DWRC3', 'C3_DWR', 'C2f_DWR', 'BasicB
            'ContextGuideFusionModule', 'C3_DEConv', 'C2f_DEConv', 'BasicBlock_DEConv', 'BottleNeck_DEConv', 'C3_SMPCGLU', 'C2f_SMPCGLU',
            'C3_Heat', 'C2f_Heat', 'PSA', 'SBA', 'WaveletPool', 'WaveletUnPool', 'CSP_PTB', 'GLSA', 'CSPOmniKernel', 'WTConv2d', 'RCM', 'PyramidContextExtraction',
            'DynamicInterpolationFusion', 'FuseBlockMulti', 'C2f_FMB', 'gConvC3', 'C2f_gConv', 'LDConv', 'BasicBlock_WDBB', 'BottleNeck_WDBB', 'BasicBlock_DeepDBB', 'BottleNeck_DeepDBB',
-           'C2f_AdditiveBlock', 'C2f_AdditiveBlock_CGLU', 'C2f_AdditiveBlock_CGLU_CoordAtt', 'CSP_MSCB', 'EUCB', 'C2f_MSMHSA_CGLU', 'CSP_PMSFA', 'C2f_MogaBlock', 'C2f_SHSA', 'C2f_SHSA_CGLU', 'C2f_SMAFB', 'C2f_SMAFB_CGLU',
+           'C2f_AdditiveBlock', 'C2f_AdditiveBlock_CGLU', 'C2f_AdditiveBlock_CGLU_CoordAtt', 'DSDCBlock', 'C2f_DSDC', 'C2f_DSDC_DCNv4', 'SPAFM', 'CSP_MSCB', 'EUCB', 'C2f_MSMHSA_CGLU', 'CSP_PMSFA', 'C2f_MogaBlock', 'C2f_SHSA', 'C2f_SHSA_CGLU', 'C2f_SMAFB', 'C2f_SMAFB_CGLU',
            'DynamicAlignFusion', 'CSP_MutilScaleEdgeInformationEnhance', 'C2f_FFCM', 'C2f_SFHF', 'CSP_FreqSpatial', 'C2f_MSM', 'CSP_MutilScaleEdgeInformationSelect', 'C2f_HDRAB', 'C2f_RAB',
            'LFEC3', 'MutilScaleEdgeInfoGenetator', 'ConvEdgeFusion', 'C2f_FCA', 'C2f_CAMixer', 'HyperComputeModule', 'MANet', 'MANet_FasterBlock', 'MANet_FasterCGLU', 'MANet_Star', 'MultiScaleGatedAttn',
            'C2f_HFERB', 'C2f_DTAB', 'DTAB', 'C2f_JDPM', 'C2f_ETB', 'ETB', 'C2f_FDT', 'FDT', 'WFU', 'PSConv', 'C2f_AP', 'ContrastDrivenFeatureAggregation', 'C2f_ELGCA', 'C2f_ELGCA_CGLU',
@@ -118,7 +118,7 @@ __all__ = ['Ghost_HGBlock', 'Rep_HGBlock', 'DWRC3', 'C3_DWR', 'C2f_DWR', 'BasicB
            'C2f_PFDConv', 'C2f_FasterFDConv', 'FDConvC3', 'C2f_DSAN', 'C2f_DSAN_EDFFN', 'C2f_MambaOut_DSA', 'C2f_DSA', 'C2f_RMB', 'SNI', 'GSConvE', 'C2f_SFSConv', 'C2f_MambaOut_SFSC', 'C2f_PSFSConv', 'C2f_FasterSFSConv',
            'C2f_GroupMamba', 'C2f_GroupMambaBlock', 'C2f_MambaVision', 'FCM', 'FCM_1', 'FCM_2', 'FCM_3', 'Pzconv', 'PST', 'C2f_FourierConv', 'FourierConv', 'C2f_wConv', 'wConv2d', 'C2f_GLVSS', 'C2f_ESC', 'C2f_MBRConv3',
            'C2f_MBRConv5', 'MBRConv3C3', 'MBRConv5C3', 'C2f_VSSD', 'C2f_TVIM', 'DPCF', 'C2f_CSI', 'C2f_SHSA_EPGO', 'C2f_SHSA_EPGO_CGLU', 'C2f_ConvAttn', 'C2f_UniConvBlock', 'C2f_LGLB', 'C2f_ConverseB', 'C2f_Converse2D',
-           'Converse2DC3', 'Converse2D', 'C2f_GCConv', 'GCConvC3', 'GCConv', 'C2f_CFBlock', 'C2f_FMABlock', 'C2f_LWGA', 'C2f_CSSC', 'C2f_CNCM', 'C2f_HFRB', 'C2f_EVA', 'C2f_RMBC', 'C2f_RMBC_LA'
+           'Converse2DC3', 'Converse2D', 'C2f_GCConv', 'GCConvC3', 'GCConv', 'C2f_CFBlock', 'C2f_FMABlock', 'C2f_LWGA', 'C2f_CSSC', 'C2f_CNCM', 'C2f_HFRB', 'C2f_EVA', 'C2f_RMBC', 'C2f_RMBC_LA', 'ASFF_V3', 'C2f_AdditiveBlock_CGLU_DCNv4'
            ]
 
 ######################################## HGBlock with RepConv and GhostConv start ########################################
@@ -6675,6 +6675,140 @@ class C2f_AdditiveBlock_CGLU_CoordAtt(C2f):
         y = list(self.cv1(x).chunk(2, 1))
         y.extend(m(y[-1]) for m in self.m)
         return self.att(self.cv2(torch.cat(y, 1)))
+
+class DCNv4_LocalIntegration(nn.Module):
+    def __init__(self, dim, ratio=1, act_layer=nn.GELU, norm_layer=nn.BatchNorm2d):
+        super().__init__()
+        self.conv = DCNV4_YOLO(dim, dim, k=3)
+
+    def forward(self, x):
+        return self.conv(x)
+
+class DCNv4_AdditiveBlock_CGLU(AdditiveBlock_CGLU):
+    def __init__(self, dim, mlp_ratio=4, attn_bias=False, drop=0, drop_path=0, act_layer=nn.GELU, norm_layer=nn.BatchNorm2d):
+        super().__init__(dim, mlp_ratio, attn_bias, drop, drop_path, act_layer, norm_layer)
+        self.local_perception = DCNv4_LocalIntegration(dim, ratio=1, act_layer=act_layer, norm_layer=norm_layer)
+
+class C2f_AdditiveBlock_CGLU_DCNv4(C2f):
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.m = nn.ModuleList(DCNv4_AdditiveBlock_CGLU(self.c) for _ in range(n))
+
+
+class DSDCBlock(nn.Module):
+    """Detail-semantic dual-path collaborative block."""
+
+    def __init__(self, dim, use_coordatt=True, use_dcn=False, drop_path=0.0, norm_layer=nn.BatchNorm2d):
+        super().__init__()
+        self.detail_path = DCNv4_LocalIntegration(dim) if use_dcn else LocalIntegration(dim, ratio=1)
+        self.norm1 = norm_layer(dim)
+        self.attn = AdditiveTokenMixer(dim)
+        self.norm2 = norm_layer(dim)
+        self.ffn = ConvolutionalGLU(dim)
+        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.gate = nn.Sequential(
+            nn.Conv2d(dim * 2, dim, 1, bias=False),
+            nn.BatchNorm2d(dim),
+            nn.Sigmoid(),
+        )
+        self.coord_att = CoordAtt(dim, dim) if use_coordatt else nn.Identity()
+
+    def forward(self, x):
+        xd = self.detail_path(x)
+        xs = self.drop_path(self.attn(self.norm1(x)))
+        xs = self.drop_path(self.ffn(self.norm2(x + xs)))
+        g = self.gate(torch.cat([xd, xs], dim=1))
+        out = x + g * xd + (1.0 - g) * xs
+        return self.coord_att(out)
+
+
+class C2f_DSDC(C2f):
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.m = nn.ModuleList(DSDCBlock(self.c, use_coordatt=True, use_dcn=False) for _ in range(n))
+
+
+class C2f_DSDC_DCNv4(C2f):
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.m = nn.ModuleList(DSDCBlock(self.c, use_coordatt=True, use_dcn=True) for _ in range(n))
+
+
+class SPAFM(nn.Module):
+    """Small-object prior guided adaptive fusion module."""
+
+    def __init__(self, inc, ouc, level=0, multiplier=0.5):
+        super().__init__()
+        self.level = level
+        self.inter_dim = max(int(ouc * multiplier), 64)
+
+        self.align = nn.ModuleList([Conv(c, self.inter_dim, 1) for c in inc])
+        self.prior_reduce = Conv(self.inter_dim * 2, self.inter_dim, 1)
+        self.prior_refine = Conv(self.inter_dim, self.inter_dim, 3)
+
+        weight_dim = max(self.inter_dim // 8, 8)
+        self.weight_levels = nn.ModuleList([Conv(self.inter_dim, weight_dim, 1) for _ in inc])
+        self.weight_concat = nn.Conv2d(weight_dim * len(inc), len(inc), kernel_size=1)
+
+        self.expand = Conv(self.inter_dim, ouc, 1)
+        self.out_refine = Conv(ouc, ouc, 3)
+
+    def forward(self, x_list):
+        target_size = x_list[self.level].shape[-2:]
+        aligned_feats = []
+        for feat, proj in zip(x_list, self.align):
+            if feat.shape[-2:] != target_size:
+                feat = F.interpolate(feat, size=target_size, mode='bilinear', align_corners=False)
+            aligned_feats.append(proj(feat))
+
+        # Use the shallow P2/P3 responses to build a small-object prior for all fusion levels.
+        prior = self.prior_reduce(torch.cat([aligned_feats[0], aligned_feats[1]], dim=1))
+        prior = self.prior_refine(prior)
+        prior_gate = torch.sigmoid(prior)
+
+        fused_inputs = [feat * (1.0 + prior_gate) for feat in aligned_feats]
+        weights = [proj(feat) for proj, feat in zip(self.weight_levels, fused_inputs)]
+        weights = torch.softmax(self.weight_concat(torch.cat(weights, dim=1)), dim=1)
+
+        out = 0
+        for i, feat in enumerate(fused_inputs):
+            out = out + feat * weights[:, i:i + 1]
+
+        out = self.expand(out + prior)
+        return self.out_refine(out)
+
+
+class ASFF_V3(nn.Module):
+    def __init__(self, level, inc_list=[256, 256, 256, 256], multiplier=0.5):
+        super(ASFF_V3, self).__init__()
+        self.level = level
+        self.dim = inc_list
+        self.inter_dim = int(inc_list[level] * multiplier)
+        
+        self.stride_levels = nn.ModuleList([Conv(inc, self.inter_dim, 1) for inc in inc_list])
+        self.weight_levels = nn.ModuleList([Conv(self.inter_dim, self.inter_dim, 1) for _ in inc_list])
+        self.weight_concat = nn.Conv2d(self.inter_dim * len(inc_list), len(inc_list), kernel_size=1)
+        self.expand = Conv(self.inter_dim, inc_list[level], 1)
+
+    def forward(self, x_list):
+        target_size = x_list[self.level].shape[-2:]
+        processed_x = []
+        for i in range(len(x_list)):
+            x = x_list[i]
+            if x.shape[-2:] != target_size:
+                x = F.interpolate(x, size=target_size, mode='bilinear', align_corners=False)
+            processed_x.append(self.stride_levels[i](x))
+        
+        weights_map = [self.weight_levels[i](processed_x[i]) for i in range(len(processed_x))]
+        
+        weight = self.weight_concat(torch.cat(weights_map, dim=1))
+        weight = torch.softmax(weight, dim=1)
+
+        out = 0
+        for i in range(len(processed_x)):
+            out += processed_x[i] * weight[:, i:i+1, :, :]
+        
+        return self.expand(out)
 
 ######################################## CAS-ViT end ########################################
 

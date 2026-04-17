@@ -475,6 +475,12 @@ class RTDETRDetectionModel(DetectionModel):
             focaler_iou=loss_cfg.get('focaler_iou', False),
             focaler_d=loss_cfg.get('focaler_d', 0.0),
             focaler_u=loss_cfg.get('focaler_u', 0.95),
+            saiw_loss=loss_cfg.get('saiw_loss', False),
+            saiw_tau=loss_cfg.get('saiw_tau', 0.003),
+            saiw_k=loss_cfg.get('saiw_k', 3.0),
+            saiw_beta=loss_cfg.get('saiw_beta', 0.5),
+            saiw_inner_min=loss_cfg.get('saiw_inner_min', 0.55),
+            saiw_inner_max=loss_cfg.get('saiw_inner_max', 0.85),
         )
         # Optional matcher and loss gains
         if 'loss_gain' in loss_cfg:
@@ -503,6 +509,18 @@ class RTDETRDetectionModel(DetectionModel):
             criterion.focaler_d = loss_cfg['focaler_d']
         if 'focaler_u' in loss_cfg:
             criterion.focaler_u = loss_cfg['focaler_u']
+        if 'saiw_loss' in loss_cfg:
+            criterion.saiw_loss = loss_cfg['saiw_loss']
+        if 'saiw_tau' in loss_cfg:
+            criterion.saiw_tau = loss_cfg['saiw_tau']
+        if 'saiw_k' in loss_cfg:
+            criterion.saiw_k = loss_cfg['saiw_k']
+        if 'saiw_beta' in loss_cfg:
+            criterion.saiw_beta = loss_cfg['saiw_beta']
+        if 'saiw_inner_min' in loss_cfg:
+            criterion.saiw_inner_min = loss_cfg['saiw_inner_min']
+        if 'saiw_inner_max' in loss_cfg:
+            criterion.saiw_inner_max = loss_cfg['saiw_inner_max']
         if hasattr(criterion, 'svfl') and criterion.svfl is not None:
             if 'svfl_alpha' in loss_cfg:
                 criterion.svfl.alpha = loss_cfg['svfl_alpha']
@@ -837,7 +855,7 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
                  C3_ContextGuided, C2f_ContextGuided, CSP_PAC, DGCST, DGCST2, RetBlockC3, C3_RetBlock, C2f_RetBlock, RepNCSPELAN4_CAA,
                  C3_PKIModule, C2f_PKIModule, C3_FADC, C2f_FADC, C3_PPA, C2f_PPA, SRFD, DRFD, RGCSPELAN, C3_Faster_CGLU, C2f_Faster_CGLU,
                  C3_Star, C2f_Star, C3_Star_CAA, C2f_Star_CAA, C3_KAN, C2f_KAN, KANC3, C3_DEConv, C2f_DEConv, C3_SMPCGLU, C2f_SMPCGLU,
-                 C3_Heat, C2f_Heat, CSP_PTB, SimpleStem, VisionClueMerge, VSSBlock_YOLO, XSSBlock, GLSA, WTConv2d, C2f_FMB, gConvC3, C2f_gConv, LDConv, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, C2f_AdditiveBlock_CGLU_CoordAtt, CSP_MSCB, C2f_MSMHSA_CGLU, CSP_PMSFA, C2f_MogaBlock,
+                 C3_Heat, C2f_Heat, CSP_PTB, SimpleStem, VisionClueMerge, VSSBlock_YOLO, XSSBlock, GLSA, WTConv2d, C2f_FMB, gConvC3, C2f_gConv, LDConv, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, C2f_AdditiveBlock_CGLU_CoordAtt, C2f_DSDC, C2f_DSDC_DCNv4, CSP_MSCB, C2f_MSMHSA_CGLU, CSP_PMSFA, C2f_MogaBlock,
                  C2f_SHSA, C2f_SHSA_CGLU, C2f_SMAFB, C2f_SMAFB_CGLU, CSP_MutilScaleEdgeInformationEnhance, C2f_FFCM, C2f_SFHF, CSP_FreqSpatial,
                  C2f_MSM, CSP_MutilScaleEdgeInformationSelect, C2f_HDRAB, C2f_RAB, LFEC3, C2f_FCA, C2f_CAMixer, MANet, MANet_FasterBlock, MANet_FasterCGLU,
                  MANet_Star, C2f_HFERB, C2f_DTAB, C2f_JDPM, C2f_ETB, C2f_FDT, PSConv, C2f_AP, C2f_ELGCA, C2f_ELGCA_CGLU, C2f_Strip, C2f_StripCGLU,
@@ -873,7 +891,7 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
                      C3_VSS, C2f_VSS, C3_LVMB, C2f_LVMB, C3_ContextGuided, C2f_ContextGuided, RetBlockC3, C3_RetBlock, C2f_RetBlock,
                      C3_PKIModule, C2f_PKIModule, C3_FADC, C2f_FADC, C3_PPA, C2f_PPA, RGCSPELAN, C3_Faster_CGLU, C2f_Faster_CGLU,
                      C3_Star, C2f_Star, C3_Star_CAA, C2f_Star_CAA, C3_KAN, C2f_KAN, KANC3, C3_DEConv, C2f_DEConv, C3_SMPCGLU, C2f_SMPCGLU, 
-                     C3_Heat, C2f_Heat, CSP_PTB, XSSBlock, C2f_FMB, C2f_gConv, gConvC3, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, C2f_AdditiveBlock_CGLU_CoordAtt, CSP_MSCB,
+                     C3_Heat, C2f_Heat, CSP_PTB, XSSBlock, C2f_FMB, C2f_gConv, gConvC3, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, C2f_AdditiveBlock_CGLU_CoordAtt, C2f_DSDC, C2f_DSDC_DCNv4, CSP_MSCB,
                      C2f_MSMHSA_CGLU, CSP_PMSFA, C2f_MogaBlock, C2f_SHSA, C2f_SHSA_CGLU, C2f_SMAFB, C2f_SMAFB_CGLU, CSP_MutilScaleEdgeInformationEnhance,
                      C2f_FFCM, C2f_SFHF, CSP_FreqSpatial, C2f_MSM, CSP_MutilScaleEdgeInformationSelect, C2f_HDRAB, C2f_RAB, LFEC3, C2f_FCA, C2f_CAMixer, MANet,
                      MANet_FasterBlock, MANet_FasterCGLU, MANet_Star, C2f_HFERB, C2f_DTAB, C2f_JDPM, C2f_ETB, C2f_FDT, C2f_AP, C2f_ELGCA, C2f_ELGCA_CGLU, 
@@ -1088,7 +1106,7 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
             c1 = [ch[x] for x in f]
             c2 = c1[0]
             args = [c1]
-        elif m in {HAFB, MFM}:
+        elif m in {HAFB, MFM, SPAFM}:
             c1 = [ch[x] for x in f]
             c2 = make_divisible(min(args[0], max_channels) * width, 8)
             args = [c1, c2, *args[1:]]

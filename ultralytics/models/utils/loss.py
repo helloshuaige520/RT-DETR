@@ -1,5 +1,6 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
 
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -55,7 +56,13 @@ class DETRLoss(nn.Module):
                  inner_ratio=0.7,
                  focaler_iou=False,
                  focaler_d=0.0,
-                 focaler_u=0.95):
+                 focaler_u=0.95,
+                 saiw_loss=False,
+                 saiw_tau=0.003,
+                 saiw_k=3.0,
+                 saiw_beta=0.5,
+                 saiw_inner_min=0.55,
+                 saiw_inner_max=0.85):
         """
         DETR loss function.
 
@@ -105,6 +112,14 @@ class DETRLoss(nn.Module):
         self.focaler_iou = focaler_iou
         self.focaler_d = focaler_d
         self.focaler_u = focaler_u
+
+        # for scale-aware inner-wasserstein loss
+        self.saiw_loss = saiw_loss
+        self.saiw_tau = saiw_tau
+        self.saiw_k = saiw_k
+        self.saiw_beta = saiw_beta
+        self.saiw_inner_min = saiw_inner_min
+        self.saiw_inner_max = saiw_inner_max
         
         # for wise-iou loss
         self.use_wiseiou = False
@@ -179,6 +194,26 @@ class DETRLoss(nn.Module):
         loss[name_bbox] = self.loss_gain['bbox'] * F.l1_loss(pred_bboxes, gt_bboxes, reduction='sum') / len(gt_bboxes)
         if self.use_wiseiou:
             loss[name_giou] = self.wiou_loss(pred_bboxes, gt_bboxes, ret_iou=False, ratio=0.7, d=0.0, u=0.95)
+        elif self.saiw_loss:
+            eps = 1e-7
+            area = (gt_bboxes[..., 2:3] * gt_bboxes[..., 3:4]).clamp_(min=eps)
+            lambda_small = torch.sigmoid(self.saiw_k * (math.log(self.saiw_tau) - torch.log(area)))
+            inner_ratio = self.saiw_inner_min + (1.0 - lambda_small) * (self.saiw_inner_max - self.saiw_inner_min)
+
+            inner_term = 1.0 - bbox_inner_iou(
+                pred_bboxes, gt_bboxes, xywh=True, GIoU=True, ratio=inner_ratio
+            )
+            nwd_term = 1.0 - wasserstein_loss(pred_bboxes, gt_bboxes, constant=self.nwd_constant)
+            center_term = (
+                (pred_bboxes[..., 0:1] - gt_bboxes[..., 0:1]).abs() +
+                (pred_bboxes[..., 1:2] - gt_bboxes[..., 1:2]).abs()
+            ) / torch.sqrt(area + eps)
+
+            loss[name_giou] = (
+                lambda_small * nwd_term +
+                (1.0 - lambda_small) * inner_term +
+                self.saiw_beta * lambda_small * center_term
+            )
         elif self.inner_iou:
             loss[name_giou] = 1.0 - bbox_inner_iou(pred_bboxes, gt_bboxes, xywh=True, GIoU=True, ratio=self.inner_ratio)
         elif self.focaler_iou:
@@ -186,7 +221,9 @@ class DETRLoss(nn.Module):
         else:
             loss[name_giou] = 1.0 - bbox_iou(pred_bboxes, gt_bboxes, xywh=True, GIoU=True)
         
-        if self.nwd_loss:
+        if self.saiw_loss:
+            loss[name_giou] = loss[name_giou].sum() / len(gt_bboxes)
+        elif self.nwd_loss:
             nwd = wasserstein_loss(pred_bboxes, gt_bboxes, constant=self.nwd_constant)
             loss[name_giou] = self.iou_ratio * (loss[name_giou].sum() / len(gt_bboxes)) + (1.0 - self.iou_ratio) * ((1.0 - nwd).sum() / len(gt_bboxes))
         elif self.gcd_loss:

@@ -1,0 +1,99 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# RT-DETR-Aerial-SOTA: C2f-Add-DCNv4 Backbone + P2-DySample Head + ASFF Fusion + InnerIoU Loss
+# 针对 VisDrone 无人机场景深度优化版本
+
+# Parameters
+nc: 10  # VisDrone 类别数
+scales: 
+  l: [1.00, 1.00, 1024]
+
+# Loss Configuration (保持你目前最强的损失配置)
+loss:
+  use_vfl: false
+  use_svfl: true
+  use_emasvfl: true
+  svfl_alpha: 0.6
+  svfl_gamma: 1.5
+  nwd_loss: true
+  nwd_constant: 10.0
+  iou_ratio: 0.6
+  inner_iou: true
+  inner_ratio: 0.75  
+  matcher_cost_gain:
+    class: 2.0
+    bbox: 5.0
+    giou: 2.0
+
+backbone:
+  # [from, repeats, module, args]
+  # Stem (初始下采样到 P2)
+  - [-1, 1, ConvNormLayer, [32, 3, 2, None, False, 'relu']] # 0-P1/2
+  - [-1, 1, ConvNormLayer, [32, 3, 1, None, False, 'relu']] # 1
+  - [-1, 1, ConvNormLayer, [64, 3, 1, None, False, 'relu']] # 2
+  - [-1, 1, nn.MaxPool2d, [3, 2, 1]] # 3-P2/4 (Stride=4)
+
+  # Stage 1 (P2): 引入 CoordAtt 增强空间定位
+  - [-1, 3, C2f_AdditiveBlock_CGLU_CoordAtt, [64, True]] # 4 -> 输出 P2 特征 (64ch)
+
+  # Stage 2 (P3)
+  - [-1, 1, Conv, [128, 3, 2]] # 5 -> 下采样 P2->P3
+  - [-1, 3, C2f_AdditiveBlock_CGLU_CoordAtt, [128, True]] # 6 -> 输出 P3 特征 (128ch)
+
+  # Stage 3 (P4): [创新点 1] 引入 DCNv4 增强可变形感受野，应对航拍目标的形状多变性
+  - [-1, 1, Conv, [256, 3, 2]] # 7 -> 下采样 P3->P4
+  - [-1, 3, C2f_AdditiveBlock_CGLU_DCNv4, [256, True]] # 8 -> 输出 P4 特征 (256ch)
+
+  # Stage 4 (P5): [创新点 1] 引入 DCNv4
+  - [-1, 1, Conv, [512, 3, 2]] # 9 -> 下采样 P4->P5
+  - [-1, 3, C2f_AdditiveBlock_CGLU_DCNv4, [512, True]] # 10 -> 输出 P5 特征 (512ch)
+
+head:
+  # --- P5 处理 ---
+  - [10, 1, Conv, [256, 1, 1, None, 1, 1, False]]  # 11 input_proj.3 (Source: Layer 10)
+  - [-1, 1, AIFI, [1024, 8]] # 12
+  - [-1, 1, Conv, [256, 1, 1]]  # 13 Y5
+
+  # --- P5 -> P4 ---
+  # [创新点 2] 使用 DySample 动态上采样，拒绝最近邻插值的模糊，保留小目标边缘信息
+  - [-1, 1, DySample, [2, 'lp']] # 14
+  - [8, 1, Conv, [256, 1, 1, None, 1, 1, False]]  # 15 input_proj.2 (Source: Layer 8)
+  - [[-2, -1], 1, Concat, [1]] # 16
+  - [-1, 3, RepC3, [256, 0.5]]  # 17 fpn_blocks.0
+  - [-1, 1, Conv, [256, 1, 1]]   # 18 Y4
+
+  # --- P4 -> P3 ---
+  - [-1, 1, DySample, [2, 'lp']] # 19
+  - [6, 1, Conv, [256, 1, 1, None, 1, 1, False]]  # 20 input_proj.1 (Source: Layer 6)
+  - [[-2, -1], 1, Concat, [1]]  # 21
+  - [-1, 3, RepC3, [256, 0.5]]    # 22 X3
+
+  # --- P3 -> P2 ---
+  - [-1, 1, DySample, [2, 'lp']] # 23
+  - [4, 1, Conv, [256, 1, 1, None, 1, 1, False]]  # 24 input_proj.0 (Source: Layer 4 - P2)
+  - [[-2, -1], 1, Concat, [1]]  # 25
+  - [-1, 3, RepC3, [128, 0.5]]    # 26 X2 (输出 P2 特征)
+
+  # --- Encoder Bottom-Up (PAN) ---
+  - [-1, 1, Conv, [256, 3, 2]]   # 27 downsample
+  - [[-1, 22], 1, Concat, [1]]  # 28 cat X3
+  - [-1, 3, RepC3, [256, 0.5]]    # 29 F3
+
+  - [-1, 1, Conv, [256, 3, 2]]   # 30 downsample
+  - [[-1, 18], 1, Concat, [1]]  # 31 cat Y4
+  - [-1, 3, RepC3, [256, 0.5]]    # 32 F4
+
+  - [-1, 1, Conv, [256, 3, 2]]   # 33 downsample
+  - [[-1, 13], 1, Concat, [1]]  # 34 cat Y5
+  - [-1, 3, RepC3, [256, 0.5]]    # 35 F5
+
+  # [创新点 3] ASFF_V3 特征自适应融合层
+  # 在最终输入检测头之前，对 P2, P3, P4, P5 进行全局自适应加权融合，消除尺度冲突
+  # 这一步需要先对不同层进行 Resize 调整到同一尺度，这里我们直接让 ASFF_V3 内部处理
+  # 注意：在 YAML 中通过 List [from1, from2, ...] 传递多个输入
+  - [[26, 29, 32, 35], 1, ASFF_V3, [0]] # 36 (ASFF at P2 scale)
+  - [[26, 29, 32, 35], 1, ASFF_V3, [1]] # 37 (ASFF at P3 scale)
+  - [[26, 29, 32, 35], 1, ASFF_V3, [2]] # 38 (ASFF at P4 scale)
+  - [[26, 29, 32, 35], 1, ASFF_V3, [3]] # 39 (ASFF at P5 scale)
+
+  # --- Detect Head (4 Scales) ---
+  - [[36, 37, 38, 39], 1, RTDETRDecoder, [nc, 128, 300, 4, 8, 3]]
