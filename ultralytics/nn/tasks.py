@@ -1110,6 +1110,11 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
             c1 = [ch[x] for x in f]
             c2 = make_divisible(min(args[0], max_channels) * width, 8)
             args = [c1, c2, *args[1:]]
+        elif m is ASFF_V3:
+            c1 = [ch[x] for x in f]
+            level = args[0]
+            c2 = c1[level]
+            args = [level, c1, *args[1:]]
         elif m in {CrossAttentionBlock}:
             c1 = [ch[x] for x in f]
             c2 = c1[1]
