@@ -585,7 +585,10 @@ class BaseTrainer:
                 resume = True
                 self.args = get_cfg(ckpt_args)
                 self.args.model = str(last)  # reinstate model
-                for k in 'imgsz', 'batch':  # allow arg updates to reduce memory on resume if crashed due to CUDA OOM
+                resume_override_keys = (
+                    'imgsz', 'batch', 'epochs', 'workers', 'amp', 'lr0', 'lrf', 'nbs',
+                    'val', 'plots', 'save_period', 'patience')
+                for k in resume_override_keys:  # allow safe arg updates when extending a resumed run
                     if k in overrides:
                         setattr(self.args, k, overrides[k])
 

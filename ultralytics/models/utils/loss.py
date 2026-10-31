@@ -208,6 +208,7 @@ class DETRLoss(nn.Module):
                 (pred_bboxes[..., 0:1] - gt_bboxes[..., 0:1]).abs() +
                 (pred_bboxes[..., 1:2] - gt_bboxes[..., 1:2]).abs()
             ) / torch.sqrt(area + eps)
+            center_term = center_term.clamp(max=4.0)
 
             loss[name_giou] = (
                 lambda_small * nwd_term +

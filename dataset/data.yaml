@@ -1,5 +1,5 @@
 # dataset path
-path: /home/rtdetr/project/visdrone2019
+path: visdrone2019
 train: ./VisDrone2019-DET-train
 val: ./VisDrone2019-DET-val
 test: ./VisDrone2019-DET-test-dev
@@ -9,3 +9,11 @@ nc: 10
 
 # class names
 names: ['pedestrian', 'people', 'bicycle', 'car', 'van', 'truck', 'tricycle', 'awning-tricycle', 'bus', 'motor']
+
+# --- HIT-UAV（备用，切换时取消注释下面块并注释上方 VisDrone 块）---
+# path: /home/rtdetr/project/HIT UAV for YOLOv5.v2i.yolov8
+# train: ../train/images
+# val: ../valid/images
+# test: ../test/images
+# nc: 5
+# names: ['Bicycle', 'Car', 'DontCare', 'OtherVehicle', 'Person']

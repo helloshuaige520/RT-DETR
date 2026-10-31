@@ -123,7 +123,7 @@ class rtdetr_target(torch.nn.Module):
 class rtdetr_heatmap:
     def __init__(self, weight, device, method, layer, backward_type, conf_threshold, ratio, show_box, renormalize):
         device = torch.device(device)
-        ckpt = torch.load(weight)
+        ckpt = torch.load(weight, weights_only=False)
         model_names = ckpt['model'].names
         model = attempt_load_weights(weight, device)
         model.info()
@@ -221,7 +221,7 @@ class rtdetr_heatmap:
 
 def get_params():
     params = {
-        'weight': 'weights/rtdetr-r18.pt',
+        'weight': '/home/rtdetr/project/RTDETR-20251122/RTDETR-20251122/RTDETR-main/runs/train/rtdetr-DSDC-SPAFM-SAIW/weights/best.pt',
         'device': 'cuda:0',
         'method': 'GradCAMPlusPlus', # GradCAMPlusPlus, GradCAM, XGradCAM, EigenCAM, HiResCAM, LayerCAM, RandomCAM, EigenGradCAM
         'layer': [15,19,22,25],
@@ -237,4 +237,4 @@ def get_params():
 
 if __name__ == '__main__':
     model = rtdetr_heatmap(**get_params())
-    model(r'/home/hjj/Desktop/dataset/dataset_voc/images', 'result')
+    model(r'/home/rtdetr/project/visdrone2019/VisDrone2019-DET-test-dev/images', 'result')

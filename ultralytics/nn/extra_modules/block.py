@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
+import warnings
+import sys
 from torch.nn.modules.utils import _pair
 from torch import Tensor
 from torch.jit import Final
@@ -11,6 +13,7 @@ from functools import partial
 from typing import Optional, Callable, Optional, Dict, Union, List
 from einops import rearrange, reduce
 from collections import OrderedDict
+from pathlib import Path
 
 from ..backbone.UniRepLKNet import get_bn, get_conv2d, NCHWtoNHWC, GRNwithNHWC, SEBlock, NHWCtoNCHW, fuse_bn, merge_dilated_into_large_kernel
 from ..backbone.rmt import RetBlock, RelPos2d
@@ -3208,10 +3211,18 @@ class AdvPoolFusion(nn.Module):
 
 ######################################## DCNV4 start ########################################
 
+DCNv4 = None
+_DCNV4_IMPORT_ERROR = None
+_DCNV4_WARNED = False
+_dcnv4_root = Path(__file__).resolve().parent / 'DCNv4_op'
+if _dcnv4_root.exists():
+    _dcnv4_root_str = str(_dcnv4_root)
+    if _dcnv4_root_str not in sys.path:
+        sys.path.append(_dcnv4_root_str)
 try:
     from DCNv4.modules.dcnv4 import DCNv4
-except ImportError as e:
-    pass
+except Exception as e:
+    _DCNV4_IMPORT_ERROR = e
 
 class DCNV4_YOLO(nn.Module):
     def __init__(self, inc, ouc, k=1, s=1, p=None, g=1, d=1, act=True):
@@ -3219,15 +3230,29 @@ class DCNV4_YOLO(nn.Module):
         
         if inc != ouc:
             self.stem_conv = Conv(inc, ouc, k=1)
-        self.dcnv4 = DCNv4(ouc, kernel_size=k, stride=s, pad=autopad(k, p, d), group=g, dilation=d)
-        self.bn = nn.BatchNorm2d(ouc)
-        self.act = Conv.default_act if act is True else act if isinstance(act, nn.Module) else nn.Identity()
+        self.use_dcnv4 = DCNv4 is not None
+        if self.use_dcnv4:
+            self.dcnv4 = DCNv4(ouc, kernel_size=k, stride=s, pad=autopad(k, p, d), group=g, dilation=d)
+            self.bn = nn.BatchNorm2d(ouc)
+            self.act = Conv.default_act if act is True else act if isinstance(act, nn.Module) else nn.Identity()
+        else:
+            global _DCNV4_WARNED
+            if not _DCNV4_WARNED:
+                warnings.warn(
+                    f"DCNv4 is unavailable ({_DCNV4_IMPORT_ERROR}). Falling back to standard Conv in DCNV4_YOLO.",
+                    RuntimeWarning,
+                )
+                _DCNV4_WARNED = True
+            self.dcnv4 = Conv(ouc, ouc, k, s, p, g=g, d=d, act=act)
     
     def forward(self, x):
         if hasattr(self, 'stem_conv'):
             x = self.stem_conv(x)
-        x = self.dcnv4(x, (x.size(2), x.size(3)))
-        x = self.act(self.bn(x))
+        if self.use_dcnv4:
+            x = self.dcnv4(x, (x.size(2), x.size(3)))
+            x = self.act(self.bn(x))
+        else:
+            x = self.dcnv4(x)
         return x
 
 class Bottleneck_DCNV4(Bottleneck):
@@ -6700,7 +6725,11 @@ class DSDCBlock(nn.Module):
 
     def __init__(self, dim, use_coordatt=True, use_dcn=False, drop_path=0.0, norm_layer=nn.BatchNorm2d):
         super().__init__()
-        self.detail_path = DCNv4_LocalIntegration(dim) if use_dcn else LocalIntegration(dim, ratio=1)
+        self.detail_path = (
+            DCNv4_LocalIntegration(dim)
+            if use_dcn else
+            LocalIntegration(dim, ratio=1, act_layer=nn.GELU, norm_layer=nn.BatchNorm2d)
+        )
         self.norm1 = norm_layer(dim)
         self.attn = AdditiveTokenMixer(dim)
         self.norm2 = norm_layer(dim)
@@ -6737,7 +6766,7 @@ class C2f_DSDC_DCNv4(C2f):
 class SPAFM(nn.Module):
     """Small-object prior guided adaptive fusion module."""
 
-    def __init__(self, inc, ouc, level=0, multiplier=0.5):
+    def __init__(self, inc, ouc, level=0, multiplier=0.25):
         super().__init__()
         self.level = level
         self.inter_dim = max(int(ouc * multiplier), 64)
@@ -6751,15 +6780,16 @@ class SPAFM(nn.Module):
         self.weight_concat = nn.Conv2d(weight_dim * len(inc), len(inc), kernel_size=1)
 
         self.expand = Conv(self.inter_dim, ouc, 1)
-        self.out_refine = Conv(ouc, ouc, 3)
+        self.out_refine = DWConv(ouc, ouc, 3)
 
     def forward(self, x_list):
         target_size = x_list[self.level].shape[-2:]
         aligned_feats = []
         for feat, proj in zip(x_list, self.align):
+            feat = proj(feat)
             if feat.shape[-2:] != target_size:
-                feat = F.interpolate(feat, size=target_size, mode='bilinear', align_corners=False)
-            aligned_feats.append(proj(feat))
+                feat = F.interpolate(feat, size=target_size, mode='nearest')
+            aligned_feats.append(feat)
 
         # Use the shallow P2/P3 responses to build a small-object prior for all fusion levels.
         prior = self.prior_reduce(torch.cat([aligned_feats[0], aligned_feats[1]], dim=1))

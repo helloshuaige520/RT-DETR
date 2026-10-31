@@ -1,0 +1,1131 @@
+<title>DSS-DETR 投稿前技术审计</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+:root{
+  --paper:#EEF1F4;
+  --surface:#FBFCFD;
+  --surface-2:#F4F6F8;
+  --ink:#131A21;
+  --ink-muted:#57687A;
+  --ink-faint:#8797A6;
+  --rule:#D3DAE1;
+  --rule-soft:#E3E8ED;
+  --primary:#1F3D5C;
+  --primary-soft:#E4EBF2;
+  --crit:#A32A1D;
+  --crit-bg:#F8E7E4;
+  --major:#9A6512;
+  --major-bg:#F9EEDC;
+  --minor:#3F6182;
+  --minor-bg:#E7EEF5;
+  --pass:#286049;
+  --pass-bg:#E2F0E9;
+  --serif:"Noto Serif SC",Songti SC,SimSun,Georgia,serif;
+  --sans:"Noto Sans SC",-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E141A;
+    --surface:#161E26;
+    --surface-2:#1B242D;
+    --ink:#E4EAF0;
+    --ink-muted:#9BABBB;
+    --ink-faint:#6B7C8C;
+    --rule:#2C3945;
+    --rule-soft:#232E39;
+    --primary:#8FB4D6;
+    --primary-soft:#1D2C3A;
+    --crit:#E8877A;
+    --crit-bg:#3A1E1A;
+    --major:#DFAE62;
+    --major-bg:#33280F;
+    --minor:#8FB0CE;
+    --minor-bg:#1C2A36;
+    --pass:#79C4A2;
+    --pass-bg:#152E24;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E141A;
+  --surface:#161E26;
+  --surface-2:#1B242D;
+  --ink:#E4EAF0;
+  --ink-muted:#9BABBB;
+  --ink-faint:#6B7C8C;
+  --rule:#2C3945;
+  --rule-soft:#232E39;
+  --primary:#8FB4D6;
+  --primary-soft:#1D2C3A;
+  --crit:#E8877A;
+  --crit-bg:#3A1E1A;
+  --major:#DFAE62;
+  --major-bg:#33280F;
+  --minor:#8FB0CE;
+  --minor-bg:#1C2A36;
+  --pass:#79C4A2;
+  --pass-bg:#152E24;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px 96px}
+
+/* ---------- masthead ---------- */
+.masthead{
+  border-bottom:2px solid var(--primary);
+  padding:52px 0 26px;
+  margin-bottom:36px;
+}
+.eyebrow{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+  margin:0 0 18px;
+}
+.masthead h1{
+  font-family:var(--serif);
+  font-weight:700;
+  font-size:clamp(30px,4.4vw,46px);
+  line-height:1.22;
+  letter-spacing:-.01em;
+  margin:0 0 10px;
+  text-wrap:balance;
+}
+.subject{
+  font-family:var(--serif);
+  font-size:clamp(16px,2vw,19px);
+  color:var(--ink-muted);
+  margin:0 0 24px;
+  font-weight:500;
+}
+.meta-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:2px;
+  background:var(--rule-soft);
+  border:1px solid var(--rule-soft);
+}
+.meta-cell{background:var(--surface);padding:12px 16px}
+.meta-cell dt{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+  margin:0 0 4px;
+}
+.meta-cell dd{margin:0;font-size:14px;font-weight:500}
+
+/* ---------- verdict ---------- */
+.verdict{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:stretch;
+  gap:2px;
+  background:var(--rule-soft);
+  border:1px solid var(--rule-soft);
+  margin:36px 0 44px;
+}
+.verdict-main{
+  flex:1 1 300px;
+  background:var(--crit-bg);
+  border-left:5px solid var(--crit);
+  padding:22px 24px;
+}
+.verdict-main .label{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--crit);
+  margin:0 0 6px;
+}
+.verdict-main .grade{
+  font-family:var(--serif);
+  font-size:34px;
+  font-weight:700;
+  line-height:1.1;
+  color:var(--crit);
+  margin:0 0 8px;
+}
+.verdict-main p{margin:0;font-size:13.5px;color:var(--ink-muted);line-height:1.6}
+.tally{
+  flex:2 1 420px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(104px,1fr));
+  gap:2px;
+  background:var(--rule-soft);
+}
+.tally-cell{background:var(--surface);padding:18px 16px}
+.tally-cell .n{
+  font-family:var(--mono);
+  font-size:30px;
+  font-weight:600;
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+  display:block;
+  margin-bottom:6px;
+}
+.tally-cell .k{font-size:12px;color:var(--ink-muted);line-height:1.4}
+.n-crit{color:var(--crit)}.n-major{color:var(--major)}
+.n-minor{color:var(--minor)}.n-pass{color:var(--pass)}
+
+/* ---------- sections ---------- */
+section{margin:0 0 60px;scroll-margin-top:20px}
+.sec-head{
+  display:flex;
+  align-items:baseline;
+  gap:14px;
+  border-bottom:1px solid var(--rule);
+  padding-bottom:10px;
+  margin-bottom:8px;
+}
+.sec-num{
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:600;
+  color:var(--primary);
+  letter-spacing:.1em;
+  flex:none;
+}
+.sec-head h2{
+  font-family:var(--serif);
+  font-size:23px;
+  font-weight:700;
+  margin:0;
+  letter-spacing:-.005em;
+}
+.sec-note{
+  color:var(--ink-muted);
+  font-size:13.5px;
+  margin:0 0 22px;
+  max-width:74ch;
+}
+
+/* ---------- audit tables ---------- */
+.tbl-scroll{overflow-x:auto;border:1px solid var(--rule);background:var(--surface)}
+table.audit{
+  width:100%;
+  min-width:940px;
+  border-collapse:collapse;
+  font-size:13.5px;
+  line-height:1.68;
+}
+table.audit thead th{
+  background:var(--surface-2);
+  border-bottom:1px solid var(--rule);
+  text-align:left;
+  padding:11px 16px;
+  font-family:var(--mono);
+  font-size:10.5px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink-muted);
+  font-weight:600;
+  white-space:nowrap;
+}
+table.audit td{
+  border-bottom:1px solid var(--rule-soft);
+  padding:16px;
+  vertical-align:top;
+}
+table.audit tbody tr:last-child td{border-bottom:none}
+table.audit td:nth-child(1){width:19%;min-width:186px;border-left:4px solid transparent}
+table.audit td:nth-child(2){width:41%}
+table.audit td:nth-child(3){width:40%}
+tr.sev-crit td:nth-child(1){border-left-color:var(--crit)}
+tr.sev-major td:nth-child(1){border-left-color:var(--major)}
+tr.sev-minor td:nth-child(1){border-left-color:var(--minor)}
+.dim{font-weight:700;display:block;margin-bottom:7px;line-height:1.5}
+.id{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink-faint);
+  display:block;
+  margin-bottom:6px;
+  letter-spacing:.06em;
+}
+
+/* ---------- inline devices ---------- */
+.chip{
+  display:inline-block;
+  font-family:var(--mono);
+  font-size:9.5px;
+  font-weight:600;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+  padding:2.5px 7px;
+  border-radius:2px;
+  white-space:nowrap;
+}
+.chip-crit{background:var(--crit-bg);color:var(--crit)}
+.chip-major{background:var(--major-bg);color:var(--major)}
+.chip-minor{background:var(--minor-bg);color:var(--minor)}
+.chip-pass{background:var(--pass-bg);color:var(--pass)}
+.loc{
+  font-family:var(--mono);
+  font-size:11.5px;
+  background:var(--primary-soft);
+  color:var(--primary);
+  padding:1.5px 5px;
+  border-radius:2px;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px}
+.bad{color:var(--crit);font-weight:600}
+.good{color:var(--pass);font-weight:600}
+.fix{
+  display:block;
+  background:var(--surface-2);
+  border-left:3px solid var(--pass);
+  padding:10px 13px;
+  margin-top:10px;
+  font-size:12.5px;
+  line-height:1.62;
+}
+.fix::before{
+  content:"改后写法";
+  display:block;
+  font-family:var(--mono);
+  font-size:9.5px;
+  letter-spacing:.15em;
+  text-transform:uppercase;
+  color:var(--pass);
+  margin-bottom:5px;
+}
+.evidence{
+  display:block;
+  background:var(--surface-2);
+  border-left:3px solid var(--crit);
+  padding:10px 13px;
+  margin-top:10px;
+  font-family:var(--mono);
+  font-size:11.5px;
+  line-height:1.6;
+  white-space:pre-wrap;
+  overflow-x:auto;
+}
+.evidence::before{
+  content:"实证";
+  display:block;
+  font-size:9.5px;
+  letter-spacing:.15em;
+  text-transform:uppercase;
+  color:var(--crit);
+  margin-bottom:5px;
+  font-weight:600;
+}
+p{margin:0 0 9px}
+p:last-child{margin-bottom:0}
+ul{margin:8px 0 0;padding-left:17px}
+li{margin-bottom:5px}
+li:last-child{margin-bottom:0}
+
+/* ---------- method + pass panels ---------- */
+.panel{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  padding:22px 26px;
+}
+.panel h3{
+  font-family:var(--serif);
+  font-size:16px;
+  margin:0 0 12px;
+  font-weight:700;
+}
+.pass-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(268px,1fr));
+  gap:2px;
+  background:var(--rule-soft);
+  border:1px solid var(--rule-soft);
+}
+.pass-item{background:var(--surface);padding:15px 18px;border-left:3px solid var(--pass)}
+.pass-item strong{display:block;font-size:13.5px;margin-bottom:5px}
+.pass-item span{font-size:12.5px;color:var(--ink-muted);line-height:1.6;display:block}
+
+/* ---------- priority queue ---------- */
+ol.queue{list-style:none;counter-reset:q;padding:0;margin:0;
+  border:1px solid var(--rule);background:var(--surface)}
+ol.queue li{
+  counter-increment:q;
+  display:grid;
+  grid-template-columns:52px 1fr;
+  gap:16px;
+  padding:16px 20px;
+  border-bottom:1px solid var(--rule-soft);
+  margin:0;
+}
+ol.queue li:last-child{border-bottom:none}
+ol.queue li::before{
+  content:counter(q,decimal-leading-zero);
+  font-family:var(--mono);
+  font-size:19px;
+  font-weight:600;
+  color:var(--primary);
+  line-height:1.5;
+}
+ol.queue strong{display:block;font-size:14.5px;margin-bottom:4px}
+ol.queue span{font-size:13px;color:var(--ink-muted);line-height:1.65;display:block}
+
+footer{
+  border-top:1px solid var(--rule);
+  margin-top:56px;
+  padding-top:22px;
+  font-size:12.5px;
+  color:var(--ink-faint);
+  line-height:1.7;
+}
+@media (max-width:640px){
+  .wrap{padding:0 16px 64px}
+  .masthead{padding-top:34px}
+  ol.queue li{grid-template-columns:38px 1fr;gap:12px;padding:14px}
+}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Confidential Peer Review · 投稿前技术审计报告</p>
+  <h1>DSS-DETR 投稿前技术审计</h1>
+  <p class="subject">《DSS-DETR：增强RT-DETR航拍小目标检测算法》— 匿名同行评审第一轮</p>
+  <dl class="meta-grid">
+    <div class="meta-cell"><dt>目标期刊</dt><dd>计算机科学与探索</dd></div>
+    <div class="meta-cell"><dt>审计日期</dt><dd>2026-08-21</dd></div>
+    <div class="meta-cell"><dt>核验方式</dt><dd>正文 × 表格 × 源码</dd></div>
+    <div class="meta-cell"><dt>建议决议</dt><dd>退修前自查</dd></div>
+  </dl>
+</header>
+
+<div class="verdict">
+  <div class="verdict-main">
+    <p class="label">Risk Rating</p>
+    <p class="grade">高风险</p>
+    <p>存在可被审稿人当场证伪的结构性硬伤（消融算力数据与开源实现直接矛盾、正文结论与表格数值反向、公式全部丢失、参考文献仅 4 条）。<strong>建议立即停止投稿流程</strong>，完成 D1–D3、L1、F1 后再评估。</p>
+  </div>
+  <div class="tally">
+    <div class="tally-cell"><span class="n n-crit">6</span><span class="k">致命<br>一票否决项</span></div>
+    <div class="tally-cell"><span class="n n-major">19</span><span class="k">严重<br>必须返修</span></div>
+    <div class="tally-cell"><span class="n n-minor">20</span><span class="k">中等<br>润色可修</span></div>
+    <div class="tally-cell"><span class="n n-pass">11</span><span class="k">通过<br>无需改动</span></div>
+  </div>
+</div>
+
+<section>
+  <div class="sec-head"><span class="sec-num">§0</span><h2>核验方法说明</h2></div>
+  <div class="panel">
+    <h3>本轮审计的证据来源</h3>
+    <p>本报告不依赖对文本的印象式判断。所有结论均通过以下三条独立路径交叉验证，凡标注「实证」处均可复现：</p>
+    <ul>
+      <li><strong>算术闭环重算</strong>：对表 2–表 7 全部 5 张数值表逐格重算类别均值、提升百分点与降幅百分比，共验算 46 个派生数值。</li>
+      <li><strong>正文—图表互译</strong>：将正文中每一处「提升 X 个百分点」「均优于」「高于」的断言回代到对应表格逐一比对方向与量级。</li>
+      <li><strong>论文—源码比对</strong>：以稿件所述结构对照仓库中的 <span class="loc">rtdetr-DSDC.yaml</span>、<span class="loc">rtdetr-DSDC-SPAFM.yaml</span>、<span class="loc">rtdetr-SPAFM-SAIW.yaml</span> 与 <span class="loc">loss.py</span>，核对模块接入方式与损失超参。<strong>这一步产生了本轮最严重的发现。</strong></li>
+    </ul>
+    <p style="margin-top:12px"><span class="loc">P####</span> 为稿件段落序号（按正文段落顺序编号，便于定位）；<span class="loc">表N</span> 为稿件原表号。</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">§1</span><h2>实验数据逻辑闭环审计</h2></div>
+  <p class="sec-note">先说结论中的好消息：稿件全部 5 张数值表的<strong>内部算术是干净的</strong>——类别均值、提升百分点、参数降幅共 46 处派生数值全部对得上号，未发现拼凑或四舍五入造假痕迹。问题不在算术，而在<strong>算力数据的物理可能性</strong>、<strong>表与表之间的对齐</strong>，以及<strong>正文对表格的转述方向</strong>。</p>
+
+  <div class="tbl-scroll">
+  <table class="audit">
+    <thead><tr><th>审计维度</th><th>具体问题定位</th><th>修改建议</th></tr></thead>
+    <tbody>
+
+    <tr class="sev-crit">
+      <td><span class="id">D1</span><span class="dim">算力数据与开源实现直接矛盾</span><span class="chip chip-crit">致命</span></td>
+      <td>
+        <p><span class="loc">表6</span> 声称 SPAFM 使 GFLOPs 下降：A→A+C 由 <span class="num">57.0</span> 降至 <span class="num bad">30.6</span>，A+B→A+B+C 由 <span class="num">107.8</span> 降至 <span class="num bad">81.37</span>；<span class="loc">P0130</span> 将其解释为「SPAFM 以<strong>整体替换</strong>的方式取代了原有的 FPN/PAN 颈部网络」。</p>
+        <p><strong>该解释与仓库实现完全相反。</strong>比对 A+B 与 A+B+C 两份配置的颈部，FPN/PAN 一行未删，SPAFM 是在解码器<strong>之前追加</strong>的 4 个模块：</p>
+        <span class="evidence">$ diff  rtdetr-DSDC.yaml  rtdetr-DSDC-SPAFM.yaml   (head 段)
+&lt; [[26,29,32,35], RTDETRDecoder, ...]
+---
+&gt; [[26,29,32,35], SPAFM, [256, 0]]  # 追加
+&gt; [[26,29,32,35], SPAFM, [256, 1]]  # 追加
+&gt; [[26,29,32,35], SPAFM, [256, 2]]  # 追加
+&gt; [[26,29,32,35], SPAFM, [256, 3]]  # 追加
+&gt; [[36,37,38,39], RTDETRDecoder, ...]
+
+自顶向下 DySample×3 + RepC3×3、自底向上 Conv/Concat/RepC3×3 全部保留</span>
+        <p style="margin-top:10px">SPAFM 为<strong>纯追加结构</strong>，算力只可能上升。A+C 相对基线 A 更是同时新增了 P2 分支（160×160 上一个 RepC3 即约 16 GMACs）并将解码器由 3 尺度扩至 4 尺度（token 数 <span class="num">8400 → 34000</span>，+305%），却报出低于基线 46% 的算力，物理上不成立。</p>
+      </td>
+      <td>
+        <p>这是全稿风险最高的一处，审稿人只要打开配置文件即可证伪，且直接动摇「以可控效率成本换精度」的核心论证。三选一，<strong>不存在只改措辞的选项</strong>：</p>
+        <ul>
+          <li><strong>首选</strong>：用 <span class="loc">get_all_yaml_param_and_flops.py</span> 在统一口径（640×640、batch=1、thop MACs）下<strong>重测全部 8 组变体</strong>，以实测值改写表 6，并据实重写 <span class="loc">P0130</span> 整段。</li>
+          <li>若实测确认 SPAFM 增加算力（预期结果），应坦承并转为「精度—算力权衡」叙事。</li>
+          <li>若确实做过「SPAFM 替换 FPN/PAN」的版本，须补交该配置文件，且当前主模型 yaml 与之不符必须说明。</li>
+        </ul>
+        <span class="fix">删除 P0130 中「SPAFM 以整体替换的方式取代了原有的 FPN/PAN 颈部网络……使得 SPAFM 颈部模块的整体计算量低于传统 FPN/PAN 结构」全部内容。改为：<br>「SPAFM 在自底向上路径输出之后引入，对四个尺度分别执行先验引导的自适应融合，属附加结构。引入 SPAFM 使模型 GFLOPs 由 ___ 增至 ___（增幅 ___%），该开销主要来自 P2 层级上的通道对齐卷积与先验门控生成。」</span>
+      </td>
+    </tr>
+
+    <tr class="sev-crit">
+      <td><span class="id">D2</span><span class="dim">效率论证语义完全颠倒</span><span class="chip chip-crit">致命</span></td>
+      <td>
+        <p><span class="loc">P0131</span>：「mAP50:95 的提升幅度（<span class="num">+10.5%</span>）<strong>显著高于</strong> GFLOPs 的增幅（<span class="num">+42.7%</span>），体现了较好的精度-效率平衡。」</p>
+        <p>两个数字本身算对了（10.52% 与 42.75%），但 <span class="num bad">10.5 &lt; 42.7</span>——正文断言的大小方向与事实相反。按字面读，本句实为「精度只涨了 10.5%，算力却涨了 42.7%」，恰好构成对作者结论的反证。</p>
+      </td>
+      <td>
+        <p>这类反向表述在审稿中被视为「未通读自检」的直接证据，务必全文排查同类句式。</p>
+        <span class="fix">「相较于基线模型（57.0 GFLOPs，90.32 FPS），完整模型以 42.7% 的算力增幅换取了 mAP50:95 的 10.5% 相对提升（绝对提升 3.03 个百分点）。考虑到航拍场景中漏检代价远高于单帧延迟，且模型仍保持 63.27 FPS 的准实时能力，该权衡在目标应用中是可接受的。」</span>
+      </td>
+    </tr>
+
+    <tr class="sev-crit">
+      <td><span class="id">D3</span><span class="dim">正文「全面领先」与表格反向</span><span class="chip chip-crit">致命</span></td>
+      <td>
+        <p><span class="loc">P0117</span> 开篇断言「本文主模型在<strong>各类别上均</strong>取得了优于对比模型的检测性能」，结尾重申「在多个类别上的 AP50-95 均优于 RT-DETR-R18」。</p>
+        <p>但 <span class="loc">表4</span> 中 awning-tricycle 一列：DSS-DETR <span class="num bad">0.1203</span> &lt; RT-DETR-R50 <span class="num">0.1328</span>，<strong>落后 1.25 个百分点</strong>。同表 motor 类 DSS-DETR <span class="num">0.3107</span> 对 R50 <span class="num">0.3101</span>，实际差距仅 <span class="num">0.0006</span>，属统计噪声量级，却被表述为「优势更为明显」。</p>
+        <p>更微妙的是 <span class="loc">P0117</span> 自己也承认「awning-tricycle……主模型较基线仍有 0.64 个百分点的提升」——只与 R18 比，回避了 R50。首尾两句在同一段内互相拆台。</p>
+      </td>
+      <td>
+        <p>「均优于」是审稿人第一时间会去证伪的绝对化表述。改为限定域断言，并主动交代唯一的落后项——主动承认反而增加可信度。</p>
+        <span class="fix">「本文主模型在 10 个类别中的 9 个上优于全部对比模型。在车辆类目标（car、van、truck、bus）上……（保留原文）……awning-tricycle 因目标外观差异大、样本占比低，是所有类别中检测最困难的一类：本文方法较 RT-DETR-R18 提升 0.64 个百分点，但仍低于 RT-DETR-R50 1.25 个百分点，说明该类别更依赖大容量骨干提供的语义判别能力，本文的浅层先验增强对其收益有限。」</span>
+      </td>
+    </tr>
+
+    <tr class="sev-crit">
+      <td><span class="id">D4</span><span class="dim">表6 与表7 无法对齐</span><span class="chip chip-crit">致命</span></td>
+      <td>
+        <p>两表描述的应是同一批实验，数值却对不上，且<strong>交叉矛盾</strong>：</p>
+        <span class="evidence">表6  A+B+C   mAP50 0.5070   mAP50:95 0.3154
+表7  L1(VFL+GIoU)     0.5058            0.3092
+表7  L2(EMA-SVFL+GIoU) 0.5103           0.3130
+
+A+B+C 的 mAP50 低于 L2，mAP50:95 却高于 L2</span>
+        <p style="margin-top:10px">A+B+C 是「完整结构 + 非 SAIW 回归损失」，理应等同于 L1 或 L2 之一，但与二者都不符，且方向相反。</p>
+        <p>根因是<strong>消融的变量控制从未定义</strong>：<span class="loc">表1</span> 把 EMA-Slide Varifocal Loss 列为全局配置，而 <span class="loc">表6</span> 只把 D 定义为 SAIW（回归损失），全篇未交代 A、A+B、A+C 等组使用何种分类损失。若 A 组已用 EMA-SVFL，则「基线」不再是原始 RT-DETR-R18，全部提升幅度需重算。</p>
+      </td>
+      <td>
+        <p>在 <span class="loc">P0124</span> 补充变量控制声明，并核对两表数据来源是否为同一批权重。</p>
+        <span class="fix">在 P0124 末尾增补：「为保证变量唯一，表 6 中编号 1–4 与 6–8 的分类损失<strong>统一采用 RT-DETR 原始 VFL</strong>，仅 D 项对应回归损失由 GIoU 替换为 SAIW；表 7 则在完整结构（A+B+C）下单独考察分类与回归损失的组合，其中 L1 对应表 6 的编号 5（A+B+C）。」<br><br>若两表实为不同批次训练，须删去其一或补做对齐实验——现有数值无法自圆。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-crit">
+      <td><span class="id">D5</span><span class="dim">P2 贡献无法归因</span><span class="chip chip-crit">致命</span></td>
+      <td>
+        <p><span class="loc">P0124</span> 明确声明：「P2–P5 四尺度检测结构作为各组合共用的高分辨率输入基础，在包含 DSDC（B）或 SPAFM（C）的所有变体中均保持一致。」</p>
+        <p>这等于承认：<strong>凡是有增益的组合，都同时引入了 P2</strong>。而在 VisDrone 小目标任务上，单独增加 P2 检测层通常即可带来 2–3 个百分点的 mAP50 提升。<span class="loc">表6</span> 因此<strong>无法区分</strong>增益究竟来自 DSDC/SPAFM，还是来自 P2 分支本身。</p>
+        <p>这是审稿人对「引入 P2 类」改进论文的<strong>必问问题</strong>，且本稿已在方法部分自曝了该缺陷。</p>
+      </td>
+      <td>
+        <p>必须补做一组消融，否则三个模块的有效性主张全部悬空。</p>
+        <span class="fix">在表 6 中新增编号 2：「A+P2」——基线 RT-DETR-R18 仅将解码器输入由 P3–P5 扩展为 P2–P5，骨干与颈部结构不变。后续 A+B、A+C 等组的提升幅度<strong>全部改为相对 A+P2 计算</strong>，并在 P0124 说明：「为剥离高分辨率分支自身的贡献，本文以 A+P2 作为四尺度变体的公共参照。」</span>
+      </td>
+    </tr>
+
+    <tr class="sev-crit">
+      <td><span class="id">D6</span><span class="dim">统计效力完全缺失</span><span class="chip chip-crit">致命</span></td>
+      <td>
+        <p>依审计要求逐条核对「统计量反推」——<strong>结论是无从反推，因为全稿不存在任何统计量</strong>：</p>
+        <ul>
+          <li>未报告重复实验次数（N=？），未报告随机种子；</li>
+          <li>全部指标为单次运行点估计，无标准差、无置信区间、无显著性检验；</li>
+          <li>无任何异常值剔除说明。</li>
+        </ul>
+        <p>在此前提下，若干关键结论落在噪声量级之内：<span class="loc">表5</span> 小目标六类均值 DSS-DETR <span class="num">+2.25</span> 对 R50 <span class="num">+2.05</span>，<strong>相差仅 0.20 个百分点</strong>；<span class="loc">表4</span> motor 类相差 <span class="num">0.0006</span>；<span class="loc">表7</span> L4→L5 的 mAP50:95 相差 <span class="num">0.0019</span>。检测模型在 VisDrone 上的种子间波动通常即达 ±0.3–0.5 个百分点。</p>
+      </td>
+      <td>
+        <p>核心期刊对此的容忍度正在快速下降。最低限度补救：主模型与基线各跑 3 个种子。</p>
+        <span class="fix">表 3 与表 6 的关键行改为「均值 ± 标准差」形式，例如：<br><span class="num">DSS-DETR&nbsp;&nbsp;mAP50 = 0.5165 ± 0.0021&nbsp;&nbsp;mAP50:95 = 0.3184 ± 0.0014&nbsp;&nbsp;(n=3)</span><br><br>并在 2.2 节增补：「为降低随机性影响，主模型与基线模型均以随机种子 0/1/2 独立训练 3 次，表中报告均值与标准差；其余对比模型受算力限制为单次运行结果，已在表注中标明。」<br><br>凡差距小于 2 倍标准差处，将「优于」改为「与……相当」。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">D7</span><span class="dim">同一模型两个 FPS</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>RT-DETR-R18 在两张表中速度不同：<span class="loc">表3</span> 为 <span class="num">90.32</span> FPS，<span class="loc">表8</span> 为 <span class="num bad">118.62</span> FPS。同一模型、同一输入尺寸、同一显卡，差异达 31%。</p>
+        <p>而 DSS-DETR 在两表中<strong>完全相同</strong>（均为 63.27）。基线变了、本文模型没变——这一非对称模式会被直接质疑为选择性取数。</p>
+      </td>
+      <td>
+        <span class="fix">统一为同一次测速结果。若 HIT-UAV 因图像尺寸不同确需单独测量，则两个模型都必须重测，并在表 8 表注注明：「表 8 的 FPS 在 HIT-UAV 图像尺寸下重新测量，与表 3（VisDrone）不可直接比较。」</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">D8</span><span class="dim">FPS 存在复制填充痕迹</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p><span class="loc">表6</span> 八组变体只出现四个 FPS 值，且成对完全相同：</p>
+        <span class="evidence">A     90.32  ┐同  A+D    90.32
+A+C  168.00  ┐同  A+C+D 168.00
+A+B   47.85  ┐同  A+B+D  47.85
+A+B+C 63.26  ✗异  A+B+C+D 63.27   ← 唯一的 0.01 差异</span>
+        <p style="margin-top:10px">损失函数不改变前向计算量，FPS 相同在<strong>原理上正确</strong>。但实测帧率不可能两次精确到小数点后两位一致——唯独 A+B+C 与 A+B+C+D 差了 0.01，恰恰暴露其余三对是复制填充。</p>
+        <p>此外 A+C 报出 <span class="num bad">168.00</span> FPS（较基线快 86%），却同时拥有更大的参数量（20.41M &gt; 19.88M），与 D1 属同一数据问题。</p>
+      </td>
+      <td>
+        <p>两条路径任选其一，但必须明示：</p>
+        <span class="fix"><strong>方案一（推荐）</strong>：在表 6 表注声明「SAIW 为纯损失函数改进，不改变网络前向结构，故 A+D、A+B+D、A+C+D、A+B+C+D 的 GFLOPs 与 FPS 直接沿用对应结构变体的实测值，未重复测速。」——将复制说明为设计，而非隐藏。<br><br><strong>方案二</strong>：八组全部独立重测，允许并保留小数点后的自然抖动。<br><br>另请将 A+B+C 的 63.26 与完整模型的 63.27 统一（同一结构不应有两个值）。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">D9</span><span class="dim">对比模型「丢失」且剔强留弱</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p><span class="loc">表3</span> 列出 9 个模型，到 <span class="loc">表4</span>、<span class="loc">表5</span> 只剩 5 个。消失的 4 个是 YOLOv5n、YOLOv11n、<strong>YOLOv12n</strong>、<strong>RT-DETR-R34</strong>，且全文未作说明。</p>
+        <p>被剔除的恰是 YOLO 系列中最强的 YOLOv12n（mAP50:95 <span class="num">0.2635</span>），保留的是最弱的 YOLOv8（<span class="num">0.1968</span>）与 YOLOv10n（<span class="num">0.1950</span>）。<span class="loc">表5</span> 据此得出「较 YOLOv8、YOLOv10n 分别提升 11.04 和 10.76 个百分点」的醒目数字。</p>
+        <p>同时 <span class="loc">P0120</span> 讨论表 5 时<strong>只字未提 RT-DETR-R50</strong>——而表 5 自身显示 R50 达 <span class="num">+2.05</span>，与本文的 <span class="num">+2.25</span> 仅差 0.20。这是典型的选择性报告结构。</p>
+      </td>
+      <td>
+        <p>类别级分析应覆盖与主表一致的模型集，至少必须纳入各系列最强者。</p>
+        <span class="fix">表 4、表 5 补入 YOLOv12n 与 RT-DETR-R34 两行。<br><br>P0120 结尾改写为：「与 RT-DETR-R18 相比，小目标类别均值提升 2.25 个百分点；与参数量为其 2.24 倍的 RT-DETR-R50（+2.05）相比略优 0.20 个百分点，二者在小目标类别上已较为接近，本文方法的优势主要体现在以约 45% 的参数量达到相当水平。」<br><br>若确因算力无法补全，须在表注写明：「受实验条件限制，类别级对比仅选取各系列代表模型，完整结果见表 3。」</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">D10</span><span class="dim">幽灵指标：承诺统计而未呈现</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>方法与实验设计中承诺的指标，结果部分并未兑现：</p>
+        <ul>
+          <li><span class="loc">P0100</span> 称统计「……mAP75、参数量、GFLOPs、<strong>模型大小</strong>和推理速度」——<strong>「模型大小」全文无任何一处出现</strong>。</li>
+          <li><span class="loc">P0122</span> 称消融「统计 Precision、Recall、mAP50、<strong>mAP75</strong>、mAP50:95……」——<span class="loc">表6</span> 无 mAP75 列。</li>
+          <li><span class="loc">P0139</span> 称泛化实验「评价指标包括……<strong>mAP75</strong>、mAP50:95」——<span class="loc">表8</span> 无 mAP75 列。</li>
+        </ul>
+        <p>仅 <span class="loc">表2</span> 一处给出了 mAP75。</p>
+      </td>
+      <td>
+        <p>补列或删诺，二选一，不可留悬空承诺。</p>
+        <span class="fix">最省事的做法是收缩承诺——P0100 改为：「本文主模型结果基于 VisDrone2019 验证集评估，统计 Precision、Recall、F1-Score、mAP50、mAP75、mAP50:95、参数量、GFLOPs 和推理速度等指标」（删去「模型大小」）。<br><br>P0122、P0139 同样删去「mAP75」，或在表 6、表 8 中补列该指标——建议补列，mAP75 恰能支撑本文关于「定位质量提升」的主张。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">D11</span><span class="dim">样本量与数据划分全缺</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>依审计要求追踪样本量，<strong>稿件未提供任何可追踪的 N 值</strong>：</p>
+        <ul>
+          <li>VisDrone2019：未报告训练/验证集图像数（标准划分为 6471/548）、未报告目标实例总数、未报告各类别实例分布——而 <span class="loc">P0117</span>、<span class="loc">P0150</span> 反复以「样本占比低」解释 awning-tricycle 精度低，却无一个数字支撑。</li>
+          <li>HIT-UAV：未报告图像数、类别数、类别名称。</li>
+          <li><span class="loc">表1</span> 训练轮数 300、Patience 50——<strong>未报告实际停止轮数</strong>，读者无法判断是否触发早停。</li>
+        </ul>
+      </td>
+      <td>
+        <span class="fix">在 2.1 节补充：「VisDrone2019 训练集含 6471 张图像、验证集含 548 张图像，共标注 ___ 个目标实例。各类别实例数分别为：pedestrian ___、people ___……其中 awning-tricycle 仅占全部实例的 ___%，是样本量最少的类别之一。」<br><br>在 2.2 节补充实际训练轮数：「训练最多进行 300 轮，Patience 设为 50；本文主模型在第 ___ 轮触发早停，最终采用第 ___ 轮的最优权重。」</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">D12</span><span class="dim">泛化实验协议未定义</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p><span class="loc">P0139</span>：「选取 HIT-UAV 数据集作为跨数据集验证集……实验中采用<strong>相同验证设置</strong>。」</p>
+        <p>「相同验证设置」无法回答关键问题：<strong>是零样本迁移，还是在 HIT-UAV 上重新训练？</strong>两者的结论强度天差地别。</p>
+        <p>若为零样本：HIT-UAV 为红外数据集，类别体系（Person/Car/Bicycle/OtherVehicle/DontCare）与 VisDrone 的 10 类<strong>标签空间不匹配</strong>，直接评测在技术上不成立。若为重新训练：这是「跨数据集有效性验证」，不宜称为「泛化能力」。</p>
+        <p>另：<span class="loc">P0139</span> 用「验证集」，<span class="loc">P0144</span> 却称「HIT-UAV <strong>测试集</strong>」，划分名称前后不一致。</p>
+      </td>
+      <td>
+        <span class="fix">在 P0139 明确写出协议（按实际情况二选一）：<br><br><strong>若重新训练</strong>：「在 HIT-UAV 数据集上以相同超参数（表 1）从头训练 RT-DETR-R18 与 DSS-DETR，按官方划分在其测试集上评估，以验证本文方法在异源航拍数据（红外成像、不同飞行高度）上的适用性。HIT-UAV 含 ___ 张红外图像、___ 个类别。」<br><br>同时把 2.7 节标题由「泛化实验」改为「跨数据集验证实验」，并统一 2.7 与 2.8 的划分名称。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">D13</span><span class="dim">对比模型基线反常</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p><span class="loc">表3</span> 中 YOLOv8（3.008M / 8.1G）的 mAP50 为 <span class="num bad">0.3368</span>，<strong>低于</strong>参数更少的 YOLOv5n（2.500M / 7.1G）的 <span class="num">0.3748</span>，Precision 更是低 10.2 个百分点（0.4468 vs 0.5486）。这与公开报道的两者相对关系相悖，暗示训练协议未对齐（轮数、增强策略或早停不一致）。</p>
+      </td>
+      <td>
+        <span class="fix">在表 3 表注声明训练协议一致性：「所有对比模型均在相同数据划分、相同输入尺寸（640×640）与相同训练轮数（300 轮）下由本文重新训练，未使用官方预训练权重之外的额外技巧。」<br><br>若 YOLOv8 结果确系协议差异所致，建议重训后更新；若维持原值，需在正文补一句说明其低于 YOLOv5n 的可能原因。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">D14</span><span class="dim">软硬件组合在技术上不成立</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p><span class="loc">P0095</span>：「GPU 选用 RTX5060ti，显存为 16G，选用 PyTorch2.3.1」。</p>
+        <p>RTX 5060 Ti 属 Blackwell 架构（算力 sm_120），而 PyTorch 2.3.1（2024-06 发布，随附 CUDA 12.1）最高仅支持 sm_90，在该卡上会直接报 <span class="num">no kernel image is available</span>。官方自 PyTorch 2.7 起才支持 Blackwell。<strong>该组合无法运行</strong>，属仪器配置逻辑矛盾。</p>
+        <p>同时缺失 CUDA 版本、Ultralytics 版本、随机种子。</p>
+      </td>
+      <td>
+        <span class="fix">核对实际环境后据实改写，例如：<br>「实验基于 Ultralytics RT-DETR 框架（v8.__）实现，操作系统为 Windows 11，GPU 为 NVIDIA GeForce RTX 5060 Ti（16 GB 显存），深度学习框架为 PyTorch 2.7.0 + CUDA 12.8，随机种子固定为 0。」<br><br>注意同时修正三处单位/名称规范：「RTX5060ti」→「RTX 5060 Ti」，「16G」→「16 GB」，「PyTorch2.3.1」→「PyTorch 2.__」（数字前加空格）。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">D15</span><span class="dim">FPS 测量条件未定义</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p>全文出现 20 余处 FPS，但从未说明测量口径：batch size、精度（FP32/FP16）、推理后端（PyTorch eager / TensorRT）、是否含预处理与后处理、预热次数、统计样本数。缺此条件，跨模型 FPS 比较不可复现，YOLO 系列「200+ FPS」与本文「63.27 FPS」的对比也失去意义。</p>
+      </td>
+      <td>
+        <span class="fix">在 2.2 节末补充：「推理速度在 batch size = 1、FP32 精度、PyTorch 原生推理（未使用 TensorRT 加速）条件下测量，包含前处理与后处理耗时；先以 100 张图像预热，再对验证集全部图像取平均，结果为端到端 FPS。」</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">D16</span><span class="dim">F1 口径未定义</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p><span class="loc">表2</span> all 行 F1 = <span class="num">0.5592</span>，为 10 个类别 F1 的算术平均（宏平均）。但由 all 行的 P=0.6394、R=0.5051 直接计算调和平均应为 <span class="num">0.5643</span>。两值相差 0.51 个百分点，读者按定义反推会对不上号。</p>
+      </td>
+      <td>
+        <span class="fix">在表 2 表注注明：「表中 all 行的 Precision、Recall、F1 及各 mAP 指标均为 10 个类别对应数值的算术平均（宏平均），其中 F1 为各类别 F1 的均值，而非由 all 行 P、R 直接计算的调和平均。」</span>
+      </td>
+    </tr>
+
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">§2</span><h2>上下文逻辑一致性审计</h2></div>
+  <p class="sec-note">按「前言（承诺）→ 方法（执行）→ 结果（事实）→ 讨论（解读）」链条比对。最突出的断链有两类：一是<strong>公式全部丢失</strong>导致方法层实际为空；二是<strong>幽灵变量</strong>——摘要与前言承诺处理「遮挡」和提升「定位稳定性」，方法层无对应模块，结果层无对应测量，讨论层却据此下了结论。</p>
+
+  <div class="tbl-scroll">
+  <table class="audit">
+    <thead><tr><th>审计维度</th><th>具体问题定位</th><th>修改建议</th></tr></thead>
+    <tbody>
+
+    <tr class="sev-crit">
+      <td><span class="id">L1</span><span class="dim">全部公式丢失，方法不可复现</span><span class="chip chip-crit">致命</span></td>
+      <td>
+        <p>稿件内嵌 28 个以上 OLE 公式对象，在当前文件中<strong>全部渲染为空</strong>，连带吞掉了公式内联的符号，造成大面积语义残缺。式 (1)–(22) 无一可读。典型受损处：</p>
+        <ul>
+          <li><span class="loc">P0025</span>「对于输入尺寸为的图像，P3、P4、P5 分别对应、、的特征图。若某些小目标在原图中仅占至像素」</li>
+          <li><span class="loc">P0068</span>「使模型在、层保留细节，在、层借助浅层先验关注潜在小目标区域」（应为 P2、P3 / P4、P5），且段首主语丢失（「的核心思想是……」）</li>
+          <li><span class="loc">P0088</span>「本文实验中采用、常数为 10.0」——<strong>SAIW 的全部超参数在此处蒸发</strong></li>
+          <li><span class="loc">P0093</span> 评价指标整段崩坏：「mAP 则是所有类别 C 的值的算术平均：mAP =」（等号后为空）、「：指当阈值设定为 0.5 时」（指标名丢失）、「由于（A）和（P）之间存在此消彼长」（应为 R 和 P）、「其计算公式分别如下：」后无公式</li>
+          <li><span class="loc">P0152</span>「主模型和分别达到 0.5165 和 0.3184」</li>
+        </ul>
+      </td>
+      <td>
+        <p>这是编辑部初审即会退稿的形式硬伤，且实质上使 SAIW 无法复现。</p>
+        <span class="fix"><strong>处置步骤</strong>：<br>1. 全部公式改用 Word 自带公式编辑器（MathType 转 OMML）重新录入，避免 OLE 嵌入对象——期刊模板明确要求「公式、参数、变量等请用公式编辑器录入」。<br>2. 逐段回填被吞掉的行内符号，重点复查上列 5 处。<br>3. 按模板要求核对：变量斜体、缩写/单位/函数名正体、向量矩阵粗斜体。<br>4. 转 PDF 后<strong>逐页目视确认</strong>每个公式与行内符号均正常显示，再行投稿。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">L2</span><span class="dim">SAIW 超参数缺失（不可复现）</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>稿件对 SAIW 只留下「常数为 10.0」一个数字。比对源码 <span class="loc">loss.py</span> 与主模型配置，实际共有 <strong>6 个超参数</strong>：</p>
+        <span class="evidence">saiw_tau        = 0.003   小目标面积阈值 τ
+saiw_k          = 3.0     尺度敏感系数 k
+saiw_beta       = 0.5     中心约束权重 β
+saiw_inner_min  = 0.55    内框比例下界
+saiw_inner_max  = 0.85    内框比例上界
+nwd_constant    = 10.0    NWD 归一化常数 C  ← 仅此一项见于稿件</span>
+        <p style="margin-top:10px">缺失其余 5 项，任何读者都无法复现 SAIW。</p>
+      </td>
+      <td>
+        <span class="fix">改写 P0088：「本文实验中取小目标面积阈值 τ = 0.003、尺度敏感系数 k = 3.0、中心约束权重 β = 0.5，内框比例区间为 [0.55, 0.85]，NWD 归一化常数 C = 10.0。为保证训练稳定性，面积项加入 ε = 1×10⁻⁷ 以避免对数与除法中的数值异常，中心偏移项在实现中上界截断为 4.0，以降低极端样本对回归梯度的干扰。」<br><br>建议同时补一组 τ 与 k 的敏感性分析（哪怕仅 3 个取值），以支撑参数选择的合理性。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">L3</span><span class="dim">损失名称与实现不符</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>稿件式 (18) 及全文（含标题、摘要、贡献点）均称该项为 <strong>Inner-IoU</strong>，模型亦命名为「Inner-Wasserstein」。但源码调用的是：</p>
+        <span class="evidence">bbox_inner_iou(pred, gt, xywh=True, GIoU=True, ratio=inner_ratio)
+                                     ^^^^^^^^^^
+实际计算的是 Inner-GIoU，而非 Inner-IoU</span>
+        <p style="margin-top:10px">GIoU 相对 IoU 额外引入了最小闭包框惩罚项，二者梯度性质不同。这一差异恰好关系到本文「缓解无重叠时梯度消失」的核心论证。</p>
+      </td>
+      <td>
+        <p>属可被复现者当场发现的名实不符，须统一。</p>
+        <span class="fix">全文将「Inner-IoU 项」改为「Inner-GIoU 项」，并在 1.5 节补一句说明其必要性：「本文采用 Inner-GIoU 形式，即在 Inner-IoU 基础上保留最小闭包框惩罚，以在预测框与真实框无重叠时仍提供有效梯度。」<br><br>模型名「Inner-Wasserstein」可保留（Inner 系列的通称），但表 7 的 L3 行需相应改为「Inner-GIoU」。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">L4</span><span class="dim">SAIW 权重未归一化（方法描述不完整）</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>式 (22) 与 <span class="loc">P0088</span> 将 SAIW 描述为「在小目标上更强调 NWD 和中心位置稳定性，在较大目标上更强调重叠质量」——即纯粹的<strong>组分重加权</strong>。但源码实现为：</p>
+        <span class="evidence">loss = λ·NWD + (1−λ)·Inner + β·λ·Center
+权重和 = λ + (1−λ) + 0.5λ = 1 + 0.5λ
+
+λ→1（极小目标）：总权重 1.5
+λ→0（大目标）  ：总权重 1.0</span>
+        <p style="margin-top:10px">因此 SAIW 实际同时做了两件事：(a) 调整三项的相对配比；(b) <strong>将小目标的回归损失整体放大最多 50%</strong>。后者是一种隐式的尺度重采样，稿件完全未述——而它很可能是性能增益的主要来源之一。</p>
+      </td>
+      <td>
+        <p>据实补述反而能强化方法的理论叙事，不必回避。</p>
+        <span class="fix">在 P0088 增补：「需要说明的是，式 (22) 中三项权重之和为 1 + βλ，故 SAIW 在调整三项相对配比的同时，亦使小目标样本的回归损失幅值相对大目标提升至多 βλ<sub>max</sub> = 50%，形成隐式的尺度重加权。该设计与航拍场景中小目标占比高但单样本梯度贡献弱的特点相适应。」<br><br>若希望论证更严谨，建议补一组「归一化版本（权重和恒为 1）」的对照实验，以分离「配比调整」与「幅值放大」各自的贡献。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">L5</span><span class="dim">幽灵变量「遮挡」</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p><strong>承诺</strong>：摘要首句与 <span class="loc">P0015</span> 将「遮挡频繁」列为四大核心问题之一。</p>
+        <p><strong>执行</strong>：方法部分（1.1–1.5）<strong>无任何模块针对遮挡设计</strong>，「遮挡」二字在整个第 1 章不再出现。</p>
+        <p><strong>事实</strong>：结果部分<strong>无任何遮挡分层评估</strong>，未按 VisDrone 自带的 occlusion 标注（无遮挡/部分遮挡/重度遮挡）分组统计。</p>
+        <p><strong>解读</strong>：<span class="loc">P0117</span> 却断言「有助于改善<strong>密集遮挡条件下</strong>的行人检测效果」；<span class="loc">P0149</span> 重申「能够有效改善小目标与<strong>密集遮挡目标</strong>的检测」。</p>
+        <p>承诺—执行—事实三环皆空，仅解读环有内容，构成完整的论证断链。</p>
+      </td>
+      <td>
+        <p>两条路径，任选其一，不能维持现状：</p>
+        <span class="fix"><strong>方案一（推荐，工作量小）——收缩承诺</strong>：<br>摘要首句改为「针对无人机航拍图像中目标尺度小、分布密集、背景干扰强导致的小目标漏检与定位不稳定问题」（删去「与遮挡频繁」）；P0117、P0149 中的「密集遮挡」统一改为「密集分布」。<br><br><strong>方案二——补齐证据</strong>：<br>利用 VisDrone 标注中的 occlusion 字段，将验证集按 occlusion ∈ {0, 1, 2} 分为三组，补一张 AP50-95 分组对比表。若本文方法在高遮挡组的提升幅度大于低遮挡组，则现有论断成立且论文说服力显著增强。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">L6</span><span class="dim">幽灵变量「定位稳定性」</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>「定位稳定性」「回归稳定性」在摘要、贡献点、1.5 节、结束语中共出现 6 次，是 SAIW 的核心卖点，但<strong>全文从未定义其测量方式，也从未测量</strong>。</p>
+        <p>现有全部证据仅为 mAP 的提升，而 mAP 提升可由分类置信度改善、召回提升等多种原因造成，不能单独支撑「回归更稳定」。</p>
+        <p>仓库中已具备 <span class="loc">heatmap.py</span>、<span class="loc">get_model_erf.py</span> 等可视化工具，却未在稿件中使用。</p>
+      </td>
+      <td>
+        <p>「稳定性」是可测量的，补一项即可把断链接上，性价比很高：</p>
+        <span class="fix">建议补充下列任一证据，并在 2.6.2 节后新增一小节「回归稳定性分析」：<br>• <strong>回归损失收敛曲线</strong>：SAIW 与 GIoU 的 giou_loss 随 epoch 变化对比（最省事，训练日志中已有）；<br>• <strong>小目标 IoU 分布</strong>：对 area &lt; 32² 的目标，绘制预测框与真实框 IoU 的直方图，比较 SAIW 与 GIoU 的分布集中度；<br>• <strong>中心点偏移统计</strong>：统计归一化中心距的均值与方差。<br><br>若不补证据，则应将「提升定位稳定性」全部弱化为「提升定位精度」——后者由 mAP75 与 mAP50:95 直接支撑，无需额外实验。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">L7</span><span class="dim">摘要与方法不一致（模块遗漏）</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>摘要对 DSDC 的描述止于「局部细节分支 + 加性 Token 混合 + 卷积门控线性单元 + 门控融合」，<strong>完全未提坐标注意力</strong>（式 7，1.2 节四大组成部分之一）。</p>
+        <p>摘要与四点贡献<strong>均未提及 DySample 动态上采样</strong>，而 1.3 节专门用一节介绍，<span class="loc">P0130</span> 更将其列为 SPAFM 算力构成的三大来源之首。</p>
+        <p>结果是：读者从摘要理解的 DSDC/颈部结构，与方法章描述的不是同一个东西。</p>
+      </td>
+      <td>
+        <span class="fix">摘要中 DSDC 一句补全为：「……并采用门控机制自适应融合两类特征，最后经坐标注意力对融合结果进行位置敏感重标定；」<br><br>摘要中 SPAFM 一句补全为：「其次，构建 P2–P5 四尺度特征融合网络，自顶向下路径采用 DySample 动态上采样以减轻边缘错位，并提出小目标先验引导的空间金字塔自适应融合模块 SPAFM……」<br><br>英文摘要同步修改。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">L8</span><span class="dim">因果语气过度引申</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>方法层做的是「替换模块 → 观测 mAP 变化」的<strong>相关性观察</strong>，讨论层多处升级为<strong>机理层面的因果断言</strong>，且无对应证据：</p>
+        <ul>
+          <li><span class="loc">P0128</span>「表明 DSDC 模块能够……<strong>增强小目标特征表达能力</strong>」——无特征可视化 / 有效感受野分析。</li>
+          <li><span class="loc">P0129</span>「表明 SAIW ……<strong>降低小目标框对位置偏移的敏感性</strong>，有效提高了边界框回归稳定性」——未测量「位置偏移敏感性」。</li>
+          <li><span class="loc">P0129</span>「SPAFM 利用浅层 P2/P3 特征生成空间先验……<strong>使模型能够在密集小目标区域保留更多空间细节</strong>」——无先验图可视化。</li>
+          <li><span class="loc">P0143</span>「说明所提模型……在跨场景航拍数据上也能够<strong>保持更强的目标识别与定位能力</strong>」——单数据集、单次运行。</li>
+          <li><span class="loc">P0117</span>「car 和 bus……检测精度<strong>显著</strong>领先」——无显著性检验，「显著」为统计学保留词。</li>
+        </ul>
+      </td>
+      <td>
+        <p>统一降级为观察性表述，或补证据升级为因果。示例改写：</p>
+        <span class="fix">P0128：「该结果表明，引入 DSDC 后模型在降低参数规模的同时取得了更高的小目标检测精度，<strong>这与其细节分支与语义分支协同建模的设计意图一致</strong>。」<br><br>P0129：「A+D 在不引入任何推理开销的前提下取得 2.37 与 1.60 个百分点的提升，<strong>提示</strong>尺度感知的回归监督对小目标定位质量有正向作用。」<br><br>P0117：将「显著领先」改为「明显领先」，全文凡未做检验处一律避免使用「显著」。<br><br>若已按 L6 补充可视化与回归误差统计，则上述因果表述可以保留——<strong>补证据比改措辞更能提升论文层次</strong>。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">L9</span><span class="dim">循环论证</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p><span class="loc">P0130</span>：「A→A+C 与 A+B→A+B+C 两种路径下，SPAFM 对传统 FPN/PAN 的替换均带来约 26.4 GFLOPs 的降低，<strong>进一步印证</strong> SPAFM 相较传统 FPN/PAN 具有更低计算开销。」</p>
+        <p>两条路径的差值一致（57.0−30.6 = 26.4；107.8−81.37 = 26.43）恰恰说明二者<strong>源自同一次计算或同一处错误</strong>，属同源数据，不构成独立验证。以「两次一致」论证「结论可靠」是典型的循环论证。</p>
+        <p>叠加 D1 的结构证伪，此段应整体删除。</p>
+      </td>
+      <td>
+        <span class="fix">删除 P0130 中「A→A+C 与 A+B→A+B+C 两种路径下……进一步印证 SPAFM 相较传统 FPN/PAN 具有更低计算开销」整句，及其后关于「1×1 通道对齐卷积、3×3 特征平滑卷积累积浮点运算量」的全部推测性解释。<br><br>以 D1 中给出的据实表述替换。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">L10</span><span class="dim">motor 类归属自相矛盾</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p><span class="loc">表5</span> 将 motor 列入「小目标六类」，作为小目标检测能力的证据。</p>
+        <p><span class="loc">P0117</span> 却写：「其中 motor 由于<strong>尺寸相对较大</strong>且外观一致性高，AP50-95 达到 0.3107」。</p>
+        <p>同一类别在相邻两页被同时定义为「小目标」和「尺寸较大」。此外，表 5「小目标六类」的选取<strong>无客观依据</strong>，未说明为何 motor 属小目标而 van 不属。</p>
+      </td>
+      <td>
+        <span class="fix">1. 为「小目标」给出客观定义。在 2.5 节补充：「本文依照 COCO 评测标准，将标注框面积小于 32×32 像素的目标记为小目标；据此统计，pedestrian、people、bicycle、tricycle、awning-tricycle 与 motor 六类中小目标实例占比均超过 __%，故选取该六类作为小目标检测能力的重点考察对象。」<br><br>2. 修正 P0117：将「motor 由于尺寸相对较大且外观一致性高」改为「motor 因外观一致性较高、纹理特征相对稳定，AP50-95 达到 0.3107」。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">L11</span><span class="dim">术语与缩写全文不统一</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p>同一对象存在多种写法，共 6 组：</p>
+        <ul>
+          <li><strong>模型名</strong>：文件名「DSS-RTDETR」 / 标题与正文「DSS-DETR」 / <span class="loc">P0143</span>「本文 DSS 模型」</li>
+          <li><strong>基线名</strong>：「RT-DETR-R18」（表 3、表 6） / 「RT-DETR-r18」（<span class="loc">P0139</span>、<span class="loc">P0143</span>）</li>
+          <li><strong>指标名</strong>：「mAP50:95」（表 2、表 3、表 6） / 「AP50-95」（表 4、表 5、<span class="loc">P0117</span>） / 「mAP50-95」</li>
+          <li><strong>F 值</strong>：「F1」（表 2） / 「F1-Score」（<span class="loc">P0100</span>、表 8） / 「F1-score」（<span class="loc">P0105</span>）</li>
+          <li><strong>分类损失</strong>：「EMA-Slide Varifocal Loss」（表 1、<span class="loc">P0089</span>） / 「EMA-SVFL」（表 7）——缩写<strong>首次出现处未给出定义</strong></li>
+          <li><strong>颈部结构</strong>：「FPN/PAN」 / 「传统 FPN/PAN」 / 「原有颈部」</li>
+        </ul>
+      </td>
+      <td>
+        <p>建立术语表后全文替换（含摘要、图题、表题、表内、图注）：</p>
+        <span class="fix">模型名统一为 <strong>DSS-DETR</strong>（并同步修改文件名，去掉 RTDETR 写法）<br>基线统一为 <strong>RT-DETR-R18</strong>（R 大写）<br>指标统一为 <strong>mAP50</strong> / <strong>mAP75</strong> / <strong>mAP50:95</strong>；类别级指标写作 <strong>AP50:95</strong>（与 mAP 保持同一分隔符）<br>统一为 <strong>F1-Score</strong><br>在 P0089 首次出现处定义：「本文使用 EMA-Slide Varifocal Loss（EMA-SVFL）」，此后统一用缩写<br>统一为 <strong>FPN/PAN</strong></span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">L12</span><span class="dim">章节编号体系缺失</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p>摘要之后至「1 改进算法设计」之前，存在<strong>两段无编号内容</strong>：<span class="loc">P0013–P0021</span>（引言与相关工作）与 <span class="loc">P0022–P0025</span>（RT-DETR 基础与问题分析），均无章节标题。</p>
+        <p>「3 结果分析与讨论」（<span class="loc">P0148–P0150</span>）仅两段，内容与 2.5、2.6 高度重复，未提供新的分析层次。</p>
+        <p>「2.7泛化实验」「2.8可视化分析」编号与标题之间缺空格，与 2.1–2.6 的格式不一致。</p>
+      </td>
+      <td>
+        <span class="fix">重组为：<br><strong>0 引言</strong>（P0013–P0021）<br><strong>1 相关工作</strong>（P0022–P0025，含 RT-DETR 基础与问题分析）<br><strong>2 改进算法设计</strong>（原第 1 章，子节顺延为 2.1–2.5）<br><strong>3 实验设计与结果分析</strong>（原第 2 章，子节顺延为 3.1–3.8）<br><strong>4 结束语</strong>（合并原第 3 章与第 4 章）<br><br>原「3 结果分析与讨论」的两段中，第一段与 3.5 重复可删；第二段（awning-tricycle 与 bicycle 的局限分析）移入结束语作为「局限与未来工作」。<br><br>统一「2.7 泛化实验」「2.8 可视化分析」的编号后空格。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">L13</span><span class="dim">文本残缺与错字</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <ul>
+          <li><span class="loc">表6</span> 表头「实验组<strong>和</strong>」应为「实验组<strong>合</strong>」</li>
+          <li><span class="loc">P0093</span>「TP（TP）表示真正例」「FP（FP）」「FN（FN）」——中英文括号内容重复</li>
+          <li><span class="loc">P0093</span>「即<strong>曲线</strong>下方围成的面积」——应为「P-R 曲线」</li>
+          <li><span class="loc">P0093</span>「相比于，该指标对边界框的回归精度提出了更为严苛的要求」——比较对象丢失</li>
+          <li><span class="loc">P0040</span>「上述过程与代码实现中的<strong>和</strong>相对应」——对象丢失</li>
+          <li><span class="loc">P0014</span>「IoU 感知查询选择机制<strong>［制表符］</strong>，兼顾实时性」——排版残留</li>
+          <li><span class="loc">P0068</span> 段首「<strong>的</strong>核心思想是……」——主语丢失，应为「SPAFM 的核心思想」</li>
+        </ul>
+      </td>
+      <td>
+        <span class="fix">逐处订正。P0093 建议整段重写（该段是全稿受损最重处）：<br><br>「其中，TP 表示真正例，即交并比（IoU）大于设定阈值且类别预测正确的检测框数量；FP 表示假正例，即误报的背景或定位不准的检测框数量；FN 表示假负例，即未被检测到的真实目标数量。由于召回率（R）与精确率（P）之间存在此消彼长的制约关系，引入平均精度（AP），即 P-R 曲线下方围成的面积；mAP 为全部 C 个类别 AP 值的算术平均。本文采用两种形式：mAP50 指 IoU 阈值为 0.5 时所有类别的平均精度均值……；mAP50:95 指 IoU 阈值自 0.5 起以 0.05 为步长递增至 0.95（共 10 个阈值）时 mAP 的平均值。相比于 mAP50，该指标对边界框回归精度提出更严苛的要求……」</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">L14</span><span class="dim">「实时性」主张缺少部署侧证据</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p>摘要与结论称「在<strong>保持实时推理能力</strong>的同时」，依据是桌面级 RTX 5060 Ti 上的 63.27 FPS。</p>
+        <p>但论文的应用场景明确设定为无人机航拍（电力巡检、应急救援、低空安防）。机载平台（Jetson Orin NX 等）的算力约为该显卡的十分之一量级，81.37 GFLOPs 的模型在其上大概率无法维持实时。<span class="loc">P0112</span> 自己也承认「航拍任务多采用离线批处理或<strong>准实时</strong>分析模式」——与摘要的「实时」口径不一致。</p>
+      </td>
+      <td>
+        <p>无需补做边缘部署实验，统一口径即可。</p>
+        <span class="fix">摘要末句改为：「……在保持<strong>准实时</strong>推理能力（单卡 63.27 FPS）的同时，有效提升了复杂航拍场景下小目标检测的精度与定位精度。」英文摘要中的 <em>real-time</em> 相应改为 <em>near-real-time</em>。<br><br>结束语的未来工作可补一句：「后续将面向 Jetson 等机载嵌入式平台开展模型压缩与部署优化，以满足在线巡检场景的实时性要求。」——既补上短板，又为下一篇论文留出接口。</span>
+      </td>
+    </tr>
+
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">§3</span><h2>投稿格式与合规性审查</h2></div>
+  <p class="sec-note">对照仓库中的《计算机科学与探索》官方模板逐条核查。<strong>参考文献是本节的一票否决项</strong>：全文仅 4 条，且正文点名引用了四位学者的工作却未给任何编号——这在核心期刊初审阶段会被直接退稿，早于任何技术评审。</p>
+
+  <div class="tbl-scroll">
+  <table class="audit">
+    <thead><tr><th>审计维度</th><th>具体问题定位</th><th>修改建议</th></tr></thead>
+    <tbody>
+
+    <tr class="sev-crit">
+      <td><span class="id">F1</span><span class="dim">参考文献严重不足且大面积漏引</span><span class="chip chip-crit">致命</span></td>
+      <td>
+        <p>正文引用标记<strong>仅 4 处</strong>（<span class="loc">P0013</span> 的 [1][2]，<span class="loc">P0014</span> 的 YOLO[3]、SSD[4]），文末列表<strong>仅 4 条</strong>。而正文实际提及的、必须引用的工作至少 25 项：</p>
+        <ul>
+          <li><strong>点名却零编号</strong>（<span class="loc">P0016</span>）：田红鹏等、胡康等、刘杰等、李宁等——<strong>直接点出四位学者姓名并描述其方法，却无任何文献编号</strong>，属学术规范严重违规。</li>
+          <li><strong>基础模型</strong>：DETR、Deformable DETR、RT-DETR、Faster R-CNN 全部无引用（<span class="loc">P0014</span>）。</li>
+          <li><strong>技术组件</strong>：DCNv4、DySample、AdditiveTokenMixer、ConvolutionalGLU、Coordinate Attention、Inner-IoU、NWD、GIoU、CIoU、Varifocal Loss、Slide Loss、RepC3、C2f、AdamW——<strong>无一引用</strong>。</li>
+          <li><strong>数据集</strong>：VisDrone2019、HIT-UAV 无引用。</li>
+          <li><strong>对比模型</strong>：YOLOv5/v8/v10/v11/v12 无引用。</li>
+        </ul>
+      </td>
+      <td>
+        <p>核心期刊研究型论文通常要求 25–35 条参考文献，且外文文献占相当比例。这是投稿前<strong>必须完成</strong>的工作，工作量约半天。</p>
+        <span class="fix"><strong>处置清单</strong>：<br>1. 补齐 P0016 四位学者的文献条目并加编号——项目 <span class="loc">国内核心小目标检测文献/</span> 目录下已存有田红鹏、胡康、刘杰、李宁四人的原文，可直接著录。<br>2. 逐一补引上列技术组件的原始论文（DCNv4、DySample、NWD、Inner-IoU、VFL 等均有明确出处）。<br>3. 补引 VisDrone2019 与 HIT-UAV 数据集论文。<br>4. 补引 RT-DETR 原文与各 YOLO 版本出处。<br>5. 按模板要求改为<strong>顺序编码制、方括号上标</strong>形式（现为行内方括号，非上标）。<br>6. 目标条目数 ≥ 25，其中外文文献建议不少于 12 条。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">F2</span><span class="dim">中文文献未附英文</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>模板参考文献要求第 (4) 条明确规定：「<strong>中文参考文献必须同时提供英文</strong>（请采用原始文献的英文）。」</p>
+        <p>现有 [1] 肖贵华等、[2] 朱艺敏两条中文文献<strong>均未附英文著录</strong>。</p>
+      </td>
+      <td>
+        <span class="fix">每条中文文献后补英文对照，格式示例：<br><br>[1] 肖贵华, 张民, 李晓阳. 面向无人机航拍图像的目标检测算法改进设计[J]. 导航定位与授时, 2025, 12(5): 57-74.<br>XIAO G H, ZHANG M, LI X Y. Improved design of object detection algorithm for UAV aerial images[J]. Navigation Positioning and Timing, 2025, 12(5): 57-74.<br><br>后续补入的全部中文文献同此处理。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">F3</span><span class="dim">引文与论点不匹配</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p><span class="loc">P0013</span>：「此类小目标在深层特征图中经过多次下采样<strong>[2]</strong>后容易被背景信息淹没」。</p>
+        <p>而 [2] 为《基于深度学习的农作物害虫幼虫检测方法研究》（桂林理工大学硕士学位论文）。以一篇农业害虫检测的硕士论文支撑「下采样导致小目标信息丢失」这一 CV 基础论断，属明显的不当引用，且模板要求「选择<strong>最主要的</strong>、发表在正式出版物上的文献」。</p>
+      </td>
+      <td>
+        <span class="fix">替换为该论断的权威出处，例如 FPN（Lin et al., CVPR 2017）或专门讨论小目标检测下采样问题的综述。<br><br>建议引用形式：「此类小目标在深层特征图中经过多次下采样后容易被背景信息淹没<sup>[2-3]</sup>」，其中 [2] 用 FPN 原文，[3] 用一篇小目标检测综述。<br><br>学位论文除非确为最直接来源，一般不宜作为核心论断的支撑文献。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">F4</span><span class="dim">英文文献著录错误</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p>[3] 与 [4] 存在多项著录错误：</p>
+        <ul>
+          <li><strong>引预印本而非正式版</strong>：两者均著录为 CoRR/arXiv，但 YOLO 已发表于 CVPR 2016、SSD 已发表于 ECCV 2016。模板要求「选择……发表在<strong>正式出版物</strong>上的文献」。</li>
+          <li><strong>文献类型标识错误</strong>：SSD 标为 [J]，会议论文应为 [C]。</li>
+          <li><strong>作者姓名缩写错误</strong>：「Divvala K S」应为「DIVVALA S」；「Girshick B R」应为「GIRSHICK R」。</li>
+          <li><strong>格式混乱</strong>：作者名后有多余空格再接逗号（「Redmon J ,」）；题名后多余句点（「Detection.[J]」）；缺卷期页码。</li>
+        </ul>
+      </td>
+      <td>
+        <span class="fix">按 GB/T 7714-2015 重新著录：<br><br>[3] REDMON J, DIVVALA S, GIRSHICK R, et al. You only look once: unified, real-time object detection[C]//Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition. Las Vegas: IEEE, 2016: 779-788.<br><br>[4] LIU W, ANGUELOV D, ERHAN D, et al. SSD: single shot multibox detector[C]//Proceedings of the European Conference on Computer Vision. Amsterdam: Springer, 2016: 21-37.<br><br>注意模板第 (2) 条：英文题名仅首词首字母、专有名词与缩略词大写，其余小写。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">F5</span><span class="dim">必填项空白与占位符残留</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <ul>
+          <li><span class="loc">P0007</span>「文献标志码：&nbsp;&nbsp;&nbsp;&nbsp;中图分类号：」——<strong>两项均空白</strong>（模板示例为「A」与「TP***」）。</li>
+          <li><span class="loc">P0159</span>「作者名（出生年—），性别，学历，职称……」——模板占位符<strong>原样未替换</strong>。</li>
+          <li><span class="loc">P0160</span>「NAME Name, born in XXXX, M.S. candidate...」——同上。</li>
+          <li><span class="loc">P0162</span>「请在投稿前补充：1. 联系人；2. 通信地址（邮政编码）；3. 电子信箱、电话」——<strong>模板提示语未删除，亦未填写</strong>。</li>
+          <li>无<strong>基金项目</strong>标注。</li>
+        </ul>
+      </td>
+      <td>
+        <span class="fix">投稿前逐项填写：<br>• 文献标志码填「A」；中图分类号按内容填「TP391.4」（图像识别与处理）。<br>• 作者简介按模板格式填实，并附 1 寸证件照（≥300 像素）。<br>• 删除 P0162 的提示语，改为完整联系方式。<br>• 若有基金支持，在首页脚注按期刊格式标注「基金项目：____（编号：____）」；无则可省略，但不应留空行。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-major">
+      <td><span class="id">F6</span><span class="dim">双盲评审信息泄露</span><span class="chip chip-major">严重</span></td>
+      <td>
+        <p><span class="loc">P0004</span> 通信作者邮箱为 <span class="num">1853850081@qq.com</span>。</p>
+        <p>两个问题：一是若期刊实行匿名评审，稿件正文<strong>不应包含作者姓名、单位与联系方式</strong>（现三者俱全）；二是学术投稿通常要求使用<strong>机构邮箱</strong>，QQ 邮箱在核心期刊投稿中易被质疑。</p>
+      </td>
+      <td>
+        <span class="fix">1. 确认目标期刊是否为双盲评审。若是，正文版本须删去 P0002–P0004（作者、单位、邮箱）与 P0158–P0162（作者简介、联系方式），另附单独的作者信息页。<br>2. 通信作者邮箱改用浙江工商大学机构邮箱（@zjgsu.edu.cn）。<br>3. 邮编「310000」不规范，浙江工商大学下沙校区应为「310018」。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">F7</span><span class="dim">表格违反三线表规范</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p>模板要求：「表格：要有表序、表题，用<strong>三线表</strong>（表格的左、右两端不封口），表中数字采用<strong>小数点对齐</strong>方式。」</p>
+        <p><span class="loc">表4</span> 与 <span class="loc">表5</span> 将 11 个（或 6 个）类别的 AP 值<strong>全部挤在一个单元格内</strong>，以斜杠分隔：<br><span class="num">「0.2999 / 0.2261 / 0.1251 / 0.6340 / ... / 0.3184」</span></p>
+        <p>这既无法小数点对齐，也无法逐列比较，读者需自行数斜杠定位类别，可读性极差。</p>
+      </td>
+      <td>
+        <span class="fix">表 4 改为 11 列的标准三线表：<br>行 = 模型（补入 YOLOv12n、RT-DETR-R34，见 D9）<br>列 = Ped. | Peo. | Bic. | Car | Van | Truck | Tri. | A-Tri. | Bus | Mot. | All<br><br>表 5 同理改为 8 列。若页面宽度不足，可将表格横排（landscape）或拆为两个子表。<br><br>全部表格统一为三线表（顶线、栏目线、底线），左右不封口，数字小数点对齐。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">F8</span><span class="dim">图未被正文引用且位置倒置</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p><span class="loc">图2</span>（DSDC 结构）与 <span class="loc">图3</span>（SPAFM 结构）<strong>在正文中从未被引用</strong>——不存在「如图 2 所示」一类的交叉引用句。</p>
+        <p>且两图的题注位置在其所属正文<strong>之前</strong>（<span class="loc">P0032–P0033</span> 位于 <span class="loc">P0034</span> 之前；<span class="loc">P0054–P0055</span> 位于 <span class="loc">P0056</span> 之前），违反「图随文走、先见文后见图」的排版惯例。</p>
+        <p>图 1、图 4 有正文引用，格式正确。</p>
+      </td>
+      <td>
+        <span class="fix">1. 在 1.2 节首段补入引用：「为兼顾二者，本文设计细节语义双路径协同模块 DSDC，<strong>其结构如图 2 所示</strong>，包括细节分支、语义分支、门控融合和坐标注意力四部分。」<br><br>2. 在 1.4 节补入：「为此，本文提出小目标先验引导的空间金字塔自适应融合模块 SPAFM，<strong>结构如图 3 所示</strong>。」<br><br>3. 将图 2、图 3 移至各自首次提及的段落之后。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">F9</span><span class="dim">图注不具自明性</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p>四张图的题注均为单句短语，未解释图中出现的任何缩写与符号，读者脱离正文无法看懂：</p>
+        <ul>
+          <li><span class="loc">图1</span> 题注未解释 Stem、C2f_DSDC、C2f_DSDC_DCNv4、DySample、RepC3、AIFI、SPAFM 等图内标签。</li>
+          <li><span class="loc">图4</span> 题注未说明检测框颜色编码、置信度阈值、五行样本各自对应何种场景（弱光/复杂背景/低空/高空/遮挡）。</li>
+          <li>全部图表<strong>无误差棒</strong>——因无重复实验（见 D6），此项无法通过图注补救。</li>
+        </ul>
+      </td>
+      <td>
+        <span class="fix">图 1 题注扩写：「图 1 DSS-DETR 整体网络结构。其中 C2f_DSDC 为细节语义双路径协同模块，C2f_DSDC_DCNv4 为引入可变形局部感知的深层变体，DySample 为动态上采样单元，RepC3 为重参数化卷积融合单元，AIFI 为尺度内特征交互模块，SPAFM 为小目标先验引导的空间金字塔自适应融合模块。」<br><br>图 4 题注扩写：「……左列为 RT-DETR-R18 基线结果，右列为 DSS-DETR 结果；自上而下五行分别对应弱光、复杂背景、低空航拍、高空航拍与遮挡目标场景。检测框置信度阈值统一设为 0.25，不同颜色代表不同类别。」</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">F10</span><span class="dim">单位与量纲不规范</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <ul>
+          <li><span class="loc">P0095</span>「显存为 16G」——应为「16 GB」（G 非法定单位）。</li>
+          <li><span class="loc">P0095</span>「RTX5060ti」——应为「RTX 5060 Ti」；「PyTorch2.3.1」缺空格。</li>
+          <li><span class="loc">表1</span>「输入尺寸 640 × 640」——未标单位，应为「640 × 640 像素」。</li>
+          <li><strong>GFLOPs 口径未定义</strong>：全文未说明是乘加次数（MACs）还是浮点运算次数（≈2×MACs），两者相差一倍，跨文献比较无法进行。</li>
+          <li><strong>有效数字不一致</strong>：参数量在正文与表 3 为「18.724M」，表 6 为「18.72M」，表 8 为「18.72」。</li>
+        </ul>
+      </td>
+      <td>
+        <span class="fix">1. 逐处订正上列单位写法。<br><br>2. 在 2.2 节或表 3 表注定义算力口径：「本文 GFLOPs 均指乘加运算次数（MACs），在 640 × 640 输入、batch size = 1 条件下由 thop 工具统计。」<br><br>3. 参数量全文统一保留三位小数（18.724M）或两位小数（18.72M），建议统一为两位。<br><br>4. 建议将全部精度指标由小数改为百分数（如 0.5165 → 51.65%），与本领域中文核心期刊惯例一致，也可免去正文中「个百分点」与小数并存造成的换算负担。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">F11</span><span class="dim">英文格式细节</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <ul>
+          <li><span class="loc">P0009</span> 署名大小写不一致：「Wang Zhichao+」与「LIU Wei」。</li>
+          <li><span class="loc">P0011</span>「Abstract:Aiming」——<strong>冒号后缺空格</strong>。</li>
+          <li>图题英文大小写体例不一：「Fig.1 DSS-DETR Enhanced RT-DETR Overall Network Structure」（Title Case）与表题「Table 1 Experimental settings and training parameters」（sentence case）混用。</li>
+          <li>「Fig.1」「Fig.2」缩写点后缺空格，应为「Fig. 1」。</li>
+          <li>表题与图题前的空格数不统一（部分单空格、部分双空格）。</li>
+        </ul>
+      </td>
+      <td>
+        <span class="fix">1. 署名统一为姓氏全大写：「WANG Zhichao, LIU Wei」。<br>2. 改为「Abstract: Aiming at the problems...」。<br>3. 图题英文统一改为 sentence case，与表题体例一致：「Fig. 1 Overall network structure of the proposed DSS-DETR」。<br>4. 图题、表题前统一使用两个空格（依模板示例）。</span>
+      </td>
+    </tr>
+
+    <tr class="sev-minor">
+      <td><span class="id">F12</span><span class="dim">合规声明缺失</span><span class="chip chip-minor">中等</span></td>
+      <td>
+        <p>缺少下列在核心期刊已渐成惯例的声明段落：</p>
+        <ul>
+          <li><strong>利益冲突声明</strong>（Conflict of Interest）——未见。</li>
+          <li><strong>数据与代码可用性声明</strong>——VisDrone2019 与 HIT-UAV 均为公开数据集，应给出出处与许可；本文改进代码是否开源亦未说明。</li>
+          <li><strong>作者贡献声明</strong>——未见。</li>
+          <li>本研究不涉及人体或动物实验，<strong>伦理审批号与临床试验注册号不适用</strong>。但 VisDrone 含大量可识别行人影像，部分期刊要求就隐私合规作简要说明。</li>
+        </ul>
+      </td>
+      <td>
+        <span class="fix">在结束语之后、参考文献之前补入：<br><br>「<strong>利益冲突声明</strong>：所有作者声明不存在利益冲突。<br><br><strong>数据可用性声明</strong>：本文使用的 VisDrone2019 与 HIT-UAV 数据集均为公开数据集，可分别从 ___ 与 ___ 获取。本文所提模块的实现代码将在论文录用后于 ___ 公开。<br><br><strong>作者贡献</strong>：王志超负责算法设计、实验实施与论文撰写；刘巍负责研究思路指导与论文修改。」<br><br>公开代码链接会明显提升审稿人对本文实验可信度的评价——考虑到 D1、D8 的问题，这一点尤其值得做。</span>
+      </td>
+    </tr>
+
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">§4</span><h2>通过项</h2></div>
+  <p class="sec-note">以下各项经逐条核验无误，无需改动。其中表格算术的完整闭环是本稿的实质性优点，说明数据整理环节是认真的——问题集中在表间对齐、算力测量与文字转述，而非原始数据本身。</p>
+  <div class="pass-grid">
+    <div class="pass-item"><strong>✅ 表2 类别均值闭环</strong><span>10 类的 P/R/F1/mAP50/mAP75/mAP50:95 六列均值与 all 行完全一致（逐列复算 60 格）。</span></div>
+    <div class="pass-item"><strong>✅ 表3 提升幅度闭环</strong><span>对 R18/R34/R50/YOLOv12n 的 8 处提升值、参数降幅 55.4% 全部复算无误。</span></div>
+    <div class="pass-item"><strong>✅ 表4 行均值闭环</strong><span>5 个模型的 10 类 AP 均值与 All 列一致，且与表 2、表 3 交叉一致。</span></div>
+    <div class="pass-item"><strong>✅ 表5 六类均值与差值闭环</strong><span>5 行均值及「较 R18 提升」列（含 −8.80、−8.52 的舍入）全部正确。</span></div>
+    <div class="pass-item"><strong>✅ 表7 损失消融闭环</strong><span>L1→L5 的 5 处提升百分点全部与表内数值吻合。</span></div>
+    <div class="pass-item"><strong>✅ mAP50 &gt; mAP75 &gt; mAP50:95 关系合理</strong><span>各类别在三个阈值下的衰减梯度与目标尺度呈正确相关（大目标衰减缓、小目标衰减陡）。</span></div>
+    <div class="pass-item"><strong>✅ 参数量在模块间可加</strong><span>B 项 −1.69M 与 C 项 +0.53M 叠加后与 A+B+C 的 18.72M 精确吻合。</span></div>
+    <div class="pass-item"><strong>✅ 无悬空的补充材料引用</strong><span>全文未出现「详见补充材料图 S1」一类指向，不存在编号对不上的风险。</span></div>
+    <div class="pass-item"><strong>✅ SAIW 单调性方向与源码一致</strong><span>「目标越小 λ 越接近 1」「小目标用更小内框比例」两处描述与实现逻辑相符。</span></div>
+    <div class="pass-item"><strong>✅ 摘要写作规范</strong><span>中文摘要约 430 字（模板要求不少于 400 字），未使用第一人称主语，未出现参考文献，中英文内容对应。</span></div>
+    <div class="pass-item"><strong>✅ 图表题中英文齐全</strong><span>图 1–4、表 1–8 均配有中英文题注，符合模板硬性要求。</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">§5</span><h2>处置优先级</h2></div>
+  <p class="sec-note">按「阻断投稿的程度」排序。第 1–3 项未完成前不建议投稿；第 4–6 项决定能否通过外审；第 7 项为提升录用概率的增值项。</p>
+  <ol class="queue">
+    <li><strong>重测全部消融变体的 GFLOPs 与 FPS，重写 P0130</strong><span>D1、D8、L9。当前算力数据与开源实现直接矛盾，是唯一可被审稿人当场证伪的硬伤，且动摇「精度—效率平衡」的核心论证。预计 0.5 天。</span></li>
+    <li><strong>重排全部公式并回填行内符号</strong><span>L1、L2。28 个以上公式全部丢失，SAIW 的 5 个超参数随之蒸发，方法章实质为空，编辑部初审即会退稿。改用 Word 公式编辑器录入，转 PDF 后逐页目视确认。预计 1 天。</span></li>
+    <li><strong>参考文献从 4 条补至 25 条以上</strong><span>F1、F2、F3、F4。尤其 P0016 点名四位学者却零编号，属学术规范违规。项目文献目录中已有原文可直接著录。预计 0.5 天。</span></li>
+    <li><strong>修正三处正文与表格反向的断言</strong><span>D2、D3。「+10.5% 显著高于 +42.7%」与「各类别上均优于」是纯文字工作，但性质严重，属「未通读自检」的直接证据。预计 1 小时。</span></li>
+    <li><strong>补做 A+P2 消融并对齐表6与表7</strong><span>D4、D5。P2 贡献无法归因是审稿人对此类论文的必问问题，且稿件已自曝该缺陷；表 6 与表 7 数值冲突需通过补充变量控制声明或重跑实验解决。预计 2 天（含训练）。</span></li>
+    <li><strong>补充三种子重复实验与标准差</strong><span>D6。多处关键结论（对 R50 领先 0.20 个百分点、motor 领先 0.0006）落在噪声量级内，无方差报告则无法主张优越性。至少覆盖主模型与基线。预计 2 天（含训练）。</span></li>
+    <li><strong>处理幽灵变量并补充机理证据</strong><span>L5、L6、L8。「遮挡」与「定位稳定性」二选一：收缩承诺（1 小时）或补齐证据（1 天）。建议补 SAIW 的回归损失收敛曲线与小目标 IoU 分布——既接上论证断链，又能把 P0128/P0129 的因果表述从「过度引申」升级为「有据可依」，是提升论文层次性价比最高的一项。</span></li>
+  </ol>
+</section>
+
+<footer>
+  <p>本报告依据稿件《DSS-DETR：增强 RT-DETR 航拍小目标检测算法》当前版本、《计算机科学与探索》投稿模板，以及项目仓库中 <span class="loc">rtdetr-DSDC.yaml</span>、<span class="loc">rtdetr-DSDC-SPAFM.yaml</span>、<span class="loc">rtdetr-SPAFM-SAIW.yaml</span>、<span class="loc">ultralytics/models/utils/loss.py</span> 的实际实现交叉核验生成。</p>
+  <p>段落编号 P#### 为审计时按正文段落顺序赋予，仅用于本报告内部定位，不对应稿件原始页码。凡标注「实证」处均可依所示命令或代码行复现。</p>
+</footer>
+
+</div>

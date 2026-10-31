@@ -553,8 +553,18 @@ class RTDETRDetectionModel(DetectionModel):
         bs = len(img)
         batch_idx = batch['batch_idx']
         gt_groups = [(batch_idx == i).sum().item() for i in range(bs)]
+        cls = batch['cls'].view(-1)
+        if cls.numel():
+            invalid_cls = (~torch.isfinite(cls)) | (cls < 0) | (cls >= self.nc) | (cls != cls.floor())
+            if invalid_cls.any():
+                label_i = int(invalid_cls.nonzero(as_tuple=False)[0])
+                image_i = int(batch_idx.view(-1)[label_i]) if len(batch_idx) else -1
+                image_path = batch.get('im_file', ['unknown'] * bs)[image_i] if 0 <= image_i < bs else 'unknown'
+                raise ValueError(
+                    f'Invalid class id {float(cls[label_i])} for nc={self.nc} in {image_path}. '
+                    'Check dataset labels and remove stale labels.cache files.')
         targets = {
-            'cls': batch['cls'].to(img.device, dtype=torch.long).view(-1),
+            'cls': cls.to(img.device, dtype=torch.long),
             'bboxes': batch['bboxes'].to(device=img.device),
             'batch_idx': batch_idx.to(img.device, dtype=torch.long).view(-1),
             'gt_groups': gt_groups}
