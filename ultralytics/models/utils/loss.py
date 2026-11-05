@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import dill as pickle
 
 from ultralytics.utils.loss import FocalLoss, VarifocalLoss, SlideLoss, EMASlideLoss, SlideVarifocalLoss, EMASlideVarifocalLoss, MALoss
-from ultralytics.utils.metrics import bbox_iou, bbox_inner_iou, bbox_focaler_iou, bbox_mpdiou, bbox_inner_mpdiou, bbox_focaler_mpdiou, wasserstein_loss, gcd_loss, WiseIouLoss
+from ultralytics.utils.metrics import bbox_iou, bbox_inner_iou, bbox_focaler_iou, bbox_mpdiou, bbox_inner_mpdiou, bbox_focaler_mpdiou, wasserstein_loss, mmd_box_loss, gcd_loss, WiseIouLoss
 
 from .ops import HungarianMatcher
 
@@ -62,7 +62,9 @@ class DETRLoss(nn.Module):
                  saiw_k=3.0,
                  saiw_beta=0.5,
                  saiw_inner_min=0.55,
-                 saiw_inner_max=0.85):
+                 saiw_inner_max=0.85,
+                 mmd_loss=False,
+                 mmd_sigma_0=0.5):
         """
         DETR loss function.
 
@@ -120,6 +122,10 @@ class DETRLoss(nn.Module):
         self.saiw_beta = saiw_beta
         self.saiw_inner_min = saiw_inner_min
         self.saiw_inner_max = saiw_inner_max
+
+        # for scale-conditioned kernel-bandwidth MMD regression loss
+        self.mmd_loss = mmd_loss
+        self.mmd_sigma_0 = mmd_sigma_0
         
         # for wise-iou loss
         self.use_wiseiou = False
@@ -215,6 +221,8 @@ class DETRLoss(nn.Module):
                 (1.0 - lambda_small) * inner_term +
                 self.saiw_beta * lambda_small * center_term
             )
+        elif self.mmd_loss:
+            loss[name_giou] = mmd_box_loss(pred_bboxes, gt_bboxes, xywh=True, sigma_0=self.mmd_sigma_0)
         elif self.inner_iou:
             loss[name_giou] = 1.0 - bbox_inner_iou(pred_bboxes, gt_bboxes, xywh=True, GIoU=True, ratio=self.inner_ratio)
         elif self.focaler_iou:

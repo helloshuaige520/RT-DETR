@@ -481,6 +481,8 @@ class RTDETRDetectionModel(DetectionModel):
             saiw_beta=loss_cfg.get('saiw_beta', 0.5),
             saiw_inner_min=loss_cfg.get('saiw_inner_min', 0.55),
             saiw_inner_max=loss_cfg.get('saiw_inner_max', 0.85),
+            mmd_loss=loss_cfg.get('mmd_loss', False),
+            mmd_sigma_0=loss_cfg.get('mmd_sigma_0', 0.5),
         )
         # Optional matcher and loss gains
         if 'loss_gain' in loss_cfg:
@@ -521,6 +523,10 @@ class RTDETRDetectionModel(DetectionModel):
             criterion.saiw_inner_min = loss_cfg['saiw_inner_min']
         if 'saiw_inner_max' in loss_cfg:
             criterion.saiw_inner_max = loss_cfg['saiw_inner_max']
+        if 'mmd_loss' in loss_cfg:
+            criterion.mmd_loss = loss_cfg['mmd_loss']
+        if 'mmd_sigma_0' in loss_cfg:
+            criterion.mmd_sigma_0 = loss_cfg['mmd_sigma_0']
         if hasattr(criterion, 'svfl') and criterion.svfl is not None:
             if 'svfl_alpha' in loss_cfg:
                 criterion.svfl.alpha = loss_cfg['svfl_alpha']

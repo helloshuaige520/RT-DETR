@@ -549,6 +549,65 @@ def wasserstein_loss(box1, box2, xywh=True, eps=1e-7, constant=12.8):
     wasserstein_2 = center_distance + wh_distance
     return torch.exp(-torch.sqrt(wasserstein_2) / constant)
 
+def mmd_box_loss(box1, box2, xywh=True, eps=1e-7, sigma_0=0.5):
+    r"""Scale-conditioned kernel-bandwidth Maximum Mean Discrepancy (MMD) box regression loss.
+
+    Treats each bounding box as a 4-point set (its four corners) and measures the squared MMD
+    between the predicted point distribution and the ground-truth point distribution under a
+    Gaussian kernel whose bandwidth is conditioned on the ground-truth box scale:
+
+        sigma_k = sigma_0 * sqrt(w_gt * h_gt)
+
+    This makes the kernel bandwidth scale with the target size, yielding two provable properties:
+    (1) scale-invariance — L(k*b, k*b_gt) = L(b, b_gt) under joint scaling;
+    (2) small-object sensitivity — a fixed pixel offset is penalized more for smaller boxes.
+
+    Args:
+        box1 (Tensor): Predicted boxes of shape (N, 4), format (x, y, w, h) if xywh else (x1, y1, x2, y2).
+        box2 (Tensor): Ground-truth boxes of shape (N, 4), same format.
+        xywh (bool): Whether boxes are in xywh (center) format.
+        eps (float): Numerical epsilon to avoid division by zero.
+        sigma_0 (float): Dimensionless bandwidth constant (default 0.5).
+
+    Returns:
+        Tensor: Per-box squared MMD of shape (N,), 0 when boxes coincide.
+    """
+    if xywh:
+        cx1, cy1, w1, h1 = box1.chunk(4, -1)
+        cx2, cy2, w2, h2 = box2.chunk(4, -1)
+    else:
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1.chunk(4, -1)
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2.chunk(4, -1)
+        cx1, cy1 = (b1_x1 + b1_x2) / 2, (b1_y1 + b1_y2) / 2
+        w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1
+        cx2, cy2 = (b2_x1 + b2_x2) / 2, (b2_y1 + b2_y2) / 2
+        w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1
+
+    # Four corners -> point sets of shape (N, 4, 2)
+    hw1, hh1 = w1 / 2, h1 / 2
+    hw2, hh2 = w2 / 2, h2 / 2
+    p = torch.stack([cx1 - hw1, cy1 - hh1,
+                     cx1 + hw1, cy1 - hh1,
+                     cx1 - hw1, cy1 + hh1,
+                     cx1 + hw1, cy1 + hh1], dim=-1).reshape(-1, 4, 2)
+    g = torch.stack([cx2 - hw2, cy2 - hh2,
+                     cx2 + hw2, cy2 - hh2,
+                     cx2 - hw2, cy2 + hh2,
+                     cx2 + hw2, cy2 + hh2], dim=-1).reshape(-1, 4, 2)
+
+    # Scale-conditioned kernel bandwidth (scale of the gt box)
+    s = (w2 * h2).clamp(min=eps).sqrt()  # (N, 1)
+    two_sigma2 = (2.0 * (sigma_0 * s) ** 2).unsqueeze(-1)  # (N, 1, 1)
+
+    # Pairwise squared distances and Gaussian kernel values
+    k_pp = torch.exp(-torch.cdist(p, p) ** 2 / two_sigma2)
+    k_gg = torch.exp(-torch.cdist(g, g) ** 2 / two_sigma2)
+    k_pg = torch.exp(-torch.cdist(p, g) ** 2 / two_sigma2)
+
+    # Biased MMD^2 (V-statistic): mean(k_pp) + mean(k_gg) - 2*mean(k_pg)
+    mmd2 = k_pp.mean(dim=(1, 2)) + k_gg.mean(dim=(1, 2)) - 2.0 * k_pg.mean(dim=(1, 2))
+    return mmd2.clamp(min=0.0)
+
 def gcd_loss(pred, target, eps=1e-7, mode='exp', gamma=1):
     center1 = (pred[..., :2] + pred[..., 2:]) / 2
     center2 = (target[..., :2] + target[..., 2:]) / 2
